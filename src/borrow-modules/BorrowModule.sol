@@ -21,6 +21,7 @@ import {IBloomPool} from "@bloom-v2/interfaces/IBloomPool.sol";
 import {IBorrowModule} from "@bloom-v2/interfaces/IBorrowModule.sol";
 import {IBloomOracle} from "@bloom-v2/interfaces/IBloomOracle.sol";
 import {ITby} from "@bloom-v2/interfaces/ITby.sol";
+
 /**
  * @title BorrowModule
  * @notice Reusable logic for building borrow modules on the Bloom Protocol.
@@ -41,11 +42,11 @@ abstract contract BorrowModule is IBorrowModule, Ownable {
     /// @notice The duration of the loan in seconds.
     uint256 internal _loanDuration;
 
-    /// @notice Mapping of borrower addresses to their KYC status.
-    mapping(address => bool) internal _borrowers;
-
     /// @notice The last TBY id that was minted associated with the borrow module.
     uint256 internal _lastMintedId;
+
+    /// @notice Mapping of borrower addresses to their KYC status.
+    mapping(address => bool) internal _borrowers;
 
     /// @notice Mapping of TBY ids to the RWA pricing ranges.
     mapping(uint256 => RwaPrice) internal _tbyIdToRwaPrice;
@@ -80,6 +81,13 @@ abstract contract BorrowModule is IBorrowModule, Ownable {
 
     /// @notice Minimum spread between the TBY rate and the rate of the RWA's price appreciation.
     uint256 constant MIN_SPREAD = 0.85e18;
+
+    /// @notice The buffer time between the first minted token of a given TBY id
+    ///         and the last possible swap in for that tokenId.
+    uint256 constant SWAP_BUFFER = 48 hours;
+
+    /// @notice The default length of time that TBYs mature.
+    uint256 constant DEFAULT_MATURITY = 180 days;
 
     /*///////////////////////////////////////////////////////////////
                             Modifiers    
@@ -120,12 +128,17 @@ abstract contract BorrowModule is IBorrowModule, Ownable {
 
         _setLeverage(initLeverage);
         _setSpread(initSpread);
+
+        _swapBuffer = SWAP_BUFFER;
+        _loanDuration = DEFAULT_MATURITY;
+        _lastMintedId = type(uint256).max;
     }
 
     /*///////////////////////////////////////////////////////////////
                             External Functions    
     //////////////////////////////////////////////////////////////*/
 
+    /// @inheritdoc IBorrowModule
     function borrow(address borrower, uint256 amount)
         external
         override
@@ -150,15 +163,22 @@ abstract contract BorrowModule is IBorrowModule, Ownable {
         _setStartPrice(_lastMintedId, rwaPriceUsd, rwaAmount, collateral.currentRwaAmount);
     }
 
-    function repay(uint256 tbyId, address borrower) external onlyBloomPool KycBorrower(borrower) returns (uint256 lenderReturn, uint256 borrowerReturn, bool isRedeemable) {
+    /// @inheritdoc IBorrowModule
+    function repay(uint256 tbyId, address borrower)
+        external
+        override
+        onlyBloomPool
+        KycBorrower(borrower)
+        returns (uint256 lenderReturn, uint256 borrowerReturn, bool isRedeemable)
+    {
         uint256 rwaAmount = _getRwaSwapAmount(tbyId);
         require(rwaAmount > 0, Errors.ZeroAmount());
 
-        TbyCollateral storage collateral = _idToCollateral[tbyId];        
+        TbyCollateral storage collateral = _idToCollateral[tbyId];
         if (collateral.originalRwaAmount == 0) {
             collateral.originalRwaAmount = uint128(rwaAmount);
         }
-        
+
         // Cannot swap out more RWA tokens than is allocated for the TBY.
         rwaAmount = FpMath.min(rwaAmount, collateral.currentRwaAmount);
 
@@ -173,14 +193,14 @@ abstract contract BorrowModule is IBorrowModule, Ownable {
         require(assetBalanceAfter - assetBalanceBefore == assetAmount, Errors.ExceedsSlippage());
 
         uint256 rwaPriceUsd = _bloomOracle.getPriceUsd(address(_rwa));
-        RwaPrice storage rwaPrice = _tbyIdToRwaPrice[tbyId];
+        RwaPrice storage rwaPrice_ = _tbyIdToRwaPrice[tbyId];
 
         // If the price has dropped between the end of the TBY's maturity date and when the market maker swap finishes,
         //     only the borrower's returns will be negatively impacted, unless the rate of the drop in price is so large,
         //     that the lender's returns are less than their implied rate. In this case, the rate will be adjusted to
         //     reflect the price of the new assets entering the pool. This adjustment is to ensure that lender returns always
         //     match up with the implied rate of the TBY.
-        if (rwaPriceUsd < rwaPrice.endPrice) {
+        if (rwaPriceUsd < rwaPrice_.endPrice) {
             if (lenderReturn > assetAmount) {
                 lenderReturn = assetAmount;
                 uint256 accumulatedCollateral = _bloomPool.lenderReturns(tbyId) + lenderReturn;
@@ -188,8 +208,8 @@ abstract contract BorrowModule is IBorrowModule, Ownable {
                     (collateral.currentRwaAmount - rwaAmount).mulWad(rwaPriceUsd) / _assetScalingFactor;
                 uint256 totalCollateral = accumulatedCollateral + remainingAmount;
                 uint256 newRate = totalCollateral.divWad(_tby.totalSupply(tbyId));
-                uint256 adjustedRate = _takeSpread(newRate, rwaPrice.spread);
-                rwaPrice.endPrice = uint128(adjustedRate.mulWad(rwaPrice.startPrice));
+                uint256 adjustedRate = _takeSpread(newRate, rwaPrice_.spread);
+                rwaPrice_.endPrice = uint128(adjustedRate.mulWad(rwaPrice_.startPrice));
             }
         }
         borrowerReturn = assetAmount - lenderReturn;
@@ -202,21 +222,54 @@ abstract contract BorrowModule is IBorrowModule, Ownable {
         }
     }
 
-    function transferCollateral(uint256 tbyId, uint256 amount, address recipient) external onlyBloomPool {
+    /// @inheritdoc IBorrowModule
+    function transferCollateral(uint256 tbyId, uint256 amount, address recipient) external override onlyBloomPool {
         _idToCollateral[tbyId].assetAmount -= uint128(amount);
         IERC20(_asset).safeTransfer(recipient, amount);
     }
 
-    function setLastMintedId(uint256 id) external onlyBloomPool {
+    /// @inheritdoc IBorrowModule
+    function setLastMintedId(uint256 id) external override onlyBloomPool {
         _lastMintedId = id;
     }
 
+    /*///////////////////////////////////////////////////////////////
+                            Admin Functions    
+    //////////////////////////////////////////////////////////////*/
+
+    /**
+     * @notice Sets the buffer time between the first and last borrow operation for a tbyId grouping.
+     * @dev Only the owner of the module can call this function.
+     * @param buffer The new buffer time.
+     */
     function setSwapBuffer(uint256 buffer) external onlyOwner {
         _swapBuffer = buffer;
     }
 
+    /**
+     * @notice Sets the duration of the loan for the next minted TBY.
+     * @dev Only the owner of the module can call this function.
+     * @param duration The new duration of the loan.
+     */
     function setLoanDuration(uint256 duration) external onlyOwner {
         _loanDuration = duration;
+    }
+
+    /**
+     * @notice Updates the leverage for future borrower fills
+     * @dev Leverage is scaled to 1e18. (20x leverage = 20e18)
+     * @param leverage_ The new leverage value.
+     */
+    function setLeverage(uint256 leverage_) external onlyOwner {
+        _setLeverage(leverage_);
+    }
+
+    /**
+     * @notice Updates the spread between the TBY rate and the RWA rate.
+     * @param spread_ The new spread value.
+     */
+    function setSpread(uint256 spread_) external onlyOwner {
+        _setSpread(spread_);
     }
 
     /**
@@ -231,96 +284,14 @@ abstract contract BorrowModule is IBorrowModule, Ownable {
     }
 
     /*///////////////////////////////////////////////////////////////
-                            View Functions    
-    //////////////////////////////////////////////////////////////*/
-
-    /// @inheritdoc IBorrowModule
-    function asset() external view returns (address) {
-        return address(_asset);
-    }
-
-    /// @inheritdoc IBorrowModule
-    function rwa() external view returns (address) {
-        return address(_rwa);
-    }
-
-    /// @inheritdoc IBorrowModule
-    function bloomOracle() external view returns (address) {
-        return address(_bloomOracle);
-    }
-
-    /// @inheritdoc IBorrowModule
-    function isKYCedBorrower(address account) public view returns (bool) {
-        return _borrowers[account];
-    }
-
-    /**
-     * @notice Updates the leverage for future borrower fills
-     * @dev Leverage is scaled to 1e18. (20x leverage = 20e18)
-     * @param leverage Updated leverage
-     */
-    function setLeverage(uint256 leverage) external onlyOwner {
-        _setLeverage(leverage);
-    }
-
-    /**
-     * @notice Updates the spread between the TBY rate and the RWA rate.
-     * @param spread_ The new spread value.
-     */
-    function setSpread(uint256 spread_) external onlyOwner {
-        _setSpread(spread_);
-    }
-
-
-    function getRate(uint256 id) public view returns (uint256) {
-        IBloomPool.TbyMaturity memory maturity = _bloomPool.tbyMaturity(id);
-        RwaPrice memory rwaPrice = _tbyIdToRwaPrice[id];
-
-        if (rwaPrice.startPrice == 0) {
-            revert Errors.InvalidTby();
-        }
-        // If the TBY has not started accruing interest, return 1e18.
-        if (block.timestamp <= maturity.start) {
-            return FpMath.WAD;
-        }
-
-        // If the TBY has matured, and is eligible for redemption, calculate the rate based on the end price.
-        uint256 price = rwaPrice.endPrice != 0 ? rwaPrice.endPrice : _bloomOracle.getPriceUsd(address(_rwa));
-        uint256 rate = (uint256(price).divWad(uint256(rwaPrice.startPrice)));
-        return _takeSpread(rate, rwaPrice.spread);
-    }
-
-    /// @inheritdoc IBorrowModule
-    function spread() external view returns (uint256) {
-        return _spread;
-    }
-
-    /// @inheritdoc IBorrowModule
-    function lastMintedId() external view returns (uint256) {
-        return _lastMintedId;
-    }
-
-    function tbyCollateral(uint256 id) external view returns (TbyCollateral memory) {
-        return _idToCollateral[id];
-    }
-
-    function swapBuffer() external view returns (uint256) {
-        return _swapBuffer;
-    }
-
-    function loanDuration() external view returns (uint256) {
-        return _loanDuration;
-    }
-
-    /*///////////////////////////////////////////////////////////////
                             Internal Functions    
     //////////////////////////////////////////////////////////////*/
 
     /// @notice Internal logic to set the leverage.
-    function _setLeverage(uint256 leverage) internal {
-        require(leverage >= FpMath.WAD && leverage < MAX_LEVERAGE, Errors.InvalidLeverage());
-        _leverage = leverage;
-        emit LeverageSet(leverage);
+    function _setLeverage(uint256 leverage_) internal {
+        require(leverage_ >= FpMath.WAD && leverage_ < MAX_LEVERAGE, Errors.InvalidLeverage());
+        _leverage = leverage_;
+        emit LeverageSet(leverage_);
     }
 
     /// @notice Internal logic to set the spread.
@@ -345,24 +316,6 @@ abstract contract BorrowModule is IBorrowModule, Ownable {
     }
 
     /**
-     * @notice Purchases the RWA tokens with the underlying asset collateral and stores them within the contract.
-     * @dev This function needs to be implemented by the specific protocol that is being used to purchase the RWA tokens.
-     *      Integration instructions:
-     *         1. Approval has already been set on the BloomPool for the borrow module to spend. This is where the source of funds are coming from.
-     *         2. The borrow module will need to swap the underlying asset collateral for the RWA token.
-     *         3. RWA token should be held within the borrow module's contract.
-     * @param borrower The address of the borrower.
-     * @param totalCollateral The total amount of collateral being swapped in.
-     * @param rwaPriceUsd The price of the RWA token in USD.
-     * @return The amount of RWA tokens purchased.
-     */
-    function _purchaseRwa(address borrower, uint256 totalCollateral, uint256 rwaPriceUsd)
-        internal
-        virtual
-        returns (uint256)
-    {}
-
-    /**
      * @notice Initializes or normalizes the starting price of the TBY.
      * @dev If the TBY Id has already been minted before the start price will be normalized via a time weighted average.
      * @param id The id of the TBY to initialize the start price for.
@@ -371,13 +324,13 @@ abstract contract BorrowModule is IBorrowModule, Ownable {
      * @param existingCollateral The amount of RWA collateral already in the pool, before the swap, for the TBY id.
      */
     function _setStartPrice(uint256 id, uint256 currentPrice, uint256 rwaAmount, uint256 existingCollateral) private {
-        RwaPrice storage rwaPrice = _tbyIdToRwaPrice[id];
-        uint256 startPrice = rwaPrice.startPrice;
+        RwaPrice storage rwaPrice_ = _tbyIdToRwaPrice[id];
+        uint256 startPrice = rwaPrice_.startPrice;
         if (startPrice == 0) {
-            rwaPrice.startPrice = uint128(currentPrice);
-            rwaPrice.spread = uint128(_spread);
+            rwaPrice_.startPrice = uint128(currentPrice);
+            rwaPrice_.spread = uint128(_spread);
         } else if (startPrice != currentPrice) {
-            rwaPrice.startPrice = uint128(_normalizePrice(startPrice, currentPrice, rwaAmount, existingCollateral));
+            rwaPrice_.startPrice = uint128(_normalizePrice(startPrice, currentPrice, rwaAmount, existingCollateral));
         }
     }
 
@@ -401,17 +354,125 @@ abstract contract BorrowModule is IBorrowModule, Ownable {
         return uint128(totalValue.divWad(totalCollateral));
     }
 
+    /*///////////////////////////////////////////////////////////////
+                            View Functions    
+    //////////////////////////////////////////////////////////////*/
+
+    /// @inheritdoc IBorrowModule
+    function getRate(uint256 id) public view override returns (uint256) {
+        IBloomPool.TbyMaturity memory maturity = _bloomPool.tbyMaturity(id);
+        RwaPrice memory rwaPrice_ = _tbyIdToRwaPrice[id];
+
+        if (rwaPrice_.startPrice == 0) {
+            revert Errors.InvalidTby();
+        }
+        // If the TBY has not started accruing interest, return 1e18.
+        if (block.timestamp <= maturity.start) {
+            return FpMath.WAD;
+        }
+
+        // If the TBY has matured, and is eligible for redemption, calculate the rate based on the end price.
+        uint256 price = rwaPrice_.endPrice != 0 ? rwaPrice_.endPrice : _bloomOracle.getPriceUsd(address(_rwa));
+        uint256 rate = (uint256(price).divWad(uint256(rwaPrice_.startPrice)));
+        return _takeSpread(rate, rwaPrice_.spread);
+    }
+
+    /// @inheritdoc IBorrowModule
+    function bloomPool() external view override returns (address) {
+        return address(_bloomPool);
+    }
+
+    /// @inheritdoc IBorrowModule
+    function tby() external view override returns (address) {
+        return address(_tby);
+    }
+
+    /// @inheritdoc IBorrowModule
+    function asset() external view override returns (address) {
+        return address(_asset);
+    }
+
+    /// @inheritdoc IBorrowModule
+    function rwa() external view override returns (address) {
+        return address(_rwa);
+    }
+
+    /// @inheritdoc IBorrowModule
+    function bloomOracle() external view override returns (address) {
+        return address(_bloomOracle);
+    }
+
+    /// @inheritdoc IBorrowModule
+    function leverage() external view override returns (uint256) {
+        return _leverage;
+    }
+
+    /// @inheritdoc IBorrowModule
+    function spread() external view override returns (uint256) {
+        return _spread;
+    }
+
+    /// @inheritdoc IBorrowModule
+    function swapBuffer() external view override returns (uint256) {
+        return _swapBuffer;
+    }
+
+    /// @inheritdoc IBorrowModule
+    function loanDuration() external view override returns (uint256) {
+        return _loanDuration;
+    }
+
+    /// @inheritdoc IBorrowModule
+    function lastMintedId() external view override returns (uint256) {
+        return _lastMintedId;
+    }
+
+    /// @inheritdoc IBorrowModule
+    function isKYCedBorrower(address account) public view override returns (bool) {
+        return _borrowers[account];
+    }
+
+    /// @inheritdoc IBorrowModule
+    function rwaPrice(uint256 id) external view override returns (RwaPrice memory) {
+        return _tbyIdToRwaPrice[id];
+    }
+
+    /// @inheritdoc IBorrowModule
+    function tbyCollateral(uint256 id) external view override returns (TbyCollateral memory) {
+        return _idToCollateral[id];
+    }
+
+    /*///////////////////////////////////////////////////////////////
+                            Virtual Functions    
+    //////////////////////////////////////////////////////////////*/
+
     /**
-     * @notice Repays the RWA tokens to the issuer in exchange for the underlying asset collateral.
-     * @dev This function needs to be implemented by the specific protocol that is being used to repay the RWA tokens.
+     * @notice Purchases the RWA tokens with the underlying asset collateral and stores them within the contract.
+     * @dev This function needs to be implemented by the specific protocol that is being used to purchase the RWA tokens.
      *      Integration instructions:
      *         1. Approval has already been set on the BloomPool for the borrow module to spend. This is where the source of funds are coming from.
-     *         2. The borrow module will need to swap the RWA token for the underlying asset collateral.
+     *         2. The borrow module will need to swap the underlying asset collateral for the RWA token.
      *         3. RWA token should be held within the borrow module's contract.
      * @param borrower The address of the borrower.
      * @param totalCollateral The total amount of collateral being swapped in.
      * @param rwaPriceUsd The price of the RWA token in USD.
      * @return The amount of RWA tokens purchased.
+     */
+    function _purchaseRwa(address borrower, uint256 totalCollateral, uint256 rwaPriceUsd)
+        internal
+        virtual
+        returns (uint256)
+    {}
+
+    /**
+     * @notice Repays the RWA tokens to the issuer in exchange for the underlying asset collateral.
+     * @dev This function needs to be implemented by the specific protocol that is being used to repay the RWA tokens.
+     *      Integration instructions:
+     *         1. Source of funds are coming from the Borrow Module.
+     *         2. The borrow module will need to swap the RWA token for the underlying asset collateral.
+     *         3. Underlying asset should be held within the borrow module's contract.
+     * @param amount The amount of RWA tokens being repaid.
+     * @return The amount of underlying asset collateral being received.
      */
     function _repayRwa(uint256 amount) internal virtual returns (uint256) {}
 

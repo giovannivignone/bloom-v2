@@ -9,40 +9,33 @@
 */
 pragma solidity 0.8.27;
 
-import {Ownable2Step, Ownable} from "@openzeppelin/contracts/access/Ownable2Step.sol";
-import {IBloomOracle} from "@bloom-v2/interfaces/IBloomOracle.sol";
-import {IOracleAdapter} from "@bloom-v2/interfaces/IOracleAdapter.sol";
+import {IOracleAdapter} from "./IOracleAdapter.sol";
 
-contract BloomOracle is IBloomOracle, Ownable2Step {
-    /// @notice Mapping of tokens to their respective oracle adapters.
-    mapping(address token => address adapter) private _adapters;
-
-    constructor(address owner) Ownable(owner) {}
-
+interface IChainlinkOracleAdapter is IOracleAdapter {
     /*///////////////////////////////////////////////////////////////
-                            Admin Functions
+                              Structs
     //////////////////////////////////////////////////////////////*/
 
     /**
-     * @notice Registers an adapter for a token.
-     * @param token Address of the token to register the adapter for.
-     * @param adapter Address of the adapter to register.
+     * @notice Struct to store the price feed for an RWA.
+     * @param priceFeed The address of the price feed.
+     * @param updateInterval The interval in seconds at which the price feed should be updated.
+     * @param decimals The number of decimals the price feed returns.
      */
-    function registerAdapter(address token, address adapter) external onlyOwner {
-        _adapters[token] = adapter;
+    struct RwaPriceFeed {
+        address priceFeed;
+        uint64 updateInterval;
+        uint8 decimals;
     }
 
     /*///////////////////////////////////////////////////////////////
                             View Functions
     //////////////////////////////////////////////////////////////*/
 
-    /// @inheritdoc IBloomOracle
-    function getPriceUsd(address token) external view override returns (uint256) {
-        return IOracleAdapter(_adapters[token]).getRate(token);
-    }
-
-    /// @inheritdoc IBloomOracle
-    function getAdapter(address token) external view returns (address) {
-        return _adapters[token];
-    }
+    /**
+     * @notice Returns the price feed information for an RWA.
+     * @param token Address of the token to get the price feed for.
+     * @return The RwaPriceFeed struct for the RWA.
+     */
+    function priceFeed(address token) external view returns (RwaPriceFeed memory);
 }
