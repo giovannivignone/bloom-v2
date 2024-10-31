@@ -44,9 +44,9 @@ interface IBloomPool is IOrderbook, IPoolStorage {
     }
 
     /**
-     * @notice Struct to store the price range for RWA assets at the time of lTBY start and end times.
-     * @param startPrice The starting price of the RWA at the time of the market maker swap.
-     * @param endPrice  The ending price of the RWA at the time of the market maker swap.
+     * @notice Struct to store the price range for RWA assets at the time of TBY start and end times.
+     * @param startPrice The starting price of the RWA at the time of the borrower swap.
+     * @param endPrice  The ending price of the RWA at the time of the borrower swap.
      * @param spread The spread for the TBY.
      */
     struct RwaPrice {

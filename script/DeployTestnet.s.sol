@@ -13,11 +13,12 @@ import {Script, console} from "forge-std/Script.sol";
 import {MockPriceFeed} from "../test/mocks/MockPriceFeed.sol";
 import {MockERC20} from "../test/mocks/MockERC20.sol";
 import {BloomPool} from "../src/BloomPool.sol";
+import {console2} from "forge-std/console2.sol";
 
 contract DeployScript is Script {
     address public owner = address(0);
 
-    MockERC20 public stable = MockERC20(0x0dfda9C55381949cafF24dbe0fB61f34be8c4832);
+    // MockERC20 public stable = MockERC20(0x0dfda9C55381949cafF24dbe0fB61f34be8c4832);
     MockERC20 public billToken = MockERC20(0x6E6132E8D7126c53458aD6CA047305F7D561A837);
     MockPriceFeed public priceFeed = MockPriceFeed(0xCf164aDC540daAfb7E80ACb51a91A98869d857d8);
 
@@ -30,14 +31,15 @@ contract DeployScript is Script {
             owner = deployer;
         }
 
-        // MockPriceFeed priceFeed = new MockPriceFeed(18);
-        priceFeed.setLatestRoundData(1, 100e18, block.timestamp, block.timestamp, 1);
-        console.log("MockPriceFeed: ", address(priceFeed));
+        // // MockPriceFeed priceFeed = new MockPriceFeed(18);
+        // priceFeed.setLatestRoundData(1, 100e18, block.timestamp, block.timestamp, 1);
+        // console.log("MockPriceFeed: ", address(priceFeed));
 
-        (, int256 answer,,,) = priceFeed.latestRoundData();
-        require(answer == 100e18, "PriceFeed is not set");
+        // (, int256 answer,,,) = priceFeed.latestRoundData();
+        // require(answer == 100e18, "PriceFeed is not set");
 
-        // MockERC20 stable = new MockERC20("Bloom USDC", "bUSDC", 6);
+        MockERC20 stable = new MockERC20("Bloom USDC", "bUSDC", 6);
+        console2.log("Stable: ", address(stable));
         // console.log("Stable: ", address(stable));
         // require(address(stable) != address(0), "Stable is not set");
 
@@ -45,23 +47,24 @@ contract DeployScript is Script {
         // console.log("BillToken: ", address(billToken));
         // require(address(billToken) != address(0), "BillToken is not set");
 
-        BloomPool bloomPool = new BloomPool(
-            address(stable),
-            address(billToken),
-            address(priceFeed),
-            1 days,
-            50e18, // 50x leverage
-            0.995e18, // .5% spread for borrow return
-            owner
-        );
-        console.log("BloomPool: ", address(bloomPool));
+        // BloomPool bloomPool = new BloomPool(
+        //     address(stable),
+        //     address(billToken),
+        //     address(priceFeed),
+        //     1 days,
+        //     50e18, // 50x leverage
+        //     0.995e18, // .5% spread for borrow return
+        //     owner
+        // );
+        // console.log("BloomPool: ", address(bloomPool));
+        // console.log("TBY: ", bloomPool.tby());
 
-        require(bloomPool.owner() != address(0), "Deployer is not owner");
-        require(bloomPool.asset() == address(stable), "Stable is not set");
-        require(bloomPool.rwa() == address(billToken), "BillToken is not set");
-        require(bloomPool.rwaPriceFeed().priceFeed == address(priceFeed), "PriceFeed is not set");
-        require(bloomPool.leverage() == 50e18, "Init leverage is not set");
-        require(bloomPool.spread() == 0.995e18, "Spread is not set");
+        // require(bloomPool.owner() != address(0), "Deployer is not owner");
+        // require(bloomPool.asset() == address(stable), "Stable is not set");
+        // require(bloomPool.rwa() == address(billToken), "BillToken is not set");
+        // require(bloomPool.rwaPriceFeed().priceFeed == address(priceFeed), "PriceFeed is not set");
+        // require(bloomPool.leverage() == 50e18, "Init leverage is not set");
+        // require(bloomPool.spread() == 0.995e18, "Spread is not set");
 
         vm.stopBroadcast();
     }

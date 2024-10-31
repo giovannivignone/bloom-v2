@@ -66,6 +66,6 @@ interface IPoolStorage {
      */
     function isKYCedMarketMaker(address account) external view returns (bool);
 
-    /// @notice Returns the spread between the TBY rate and the RWA rate.
-    function spread() external view returns (uint256);
+    /// @notice Adds a borrow module to the pool.
+    function addBorrowModule(address module) external;
 }
