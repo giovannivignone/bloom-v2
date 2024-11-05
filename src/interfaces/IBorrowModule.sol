@@ -16,13 +16,11 @@ interface IBorrowModule {
     /**
      * @notice Struct representing the collateral backed by a TBY.
      * @param assetAmount The amount of underlying asset collateral.
-     * @param currentRwaAmount The amount of rwa asset collateral at the current time.
-     * @param originalRwaAmount The amount of rwa asset collateral at the start of the TBY (will only be set at the end of the TBYs maturity for accounting purposes)
+     * @param rwaAmount The amount of rwa asset collateral at the current time.
      */
     struct TbyCollateral {
         uint128 assetAmount;
-        uint128 currentRwaAmount;
-        uint128 originalRwaAmount;
+        uint128 rwaAmount;
     }
 
     /**

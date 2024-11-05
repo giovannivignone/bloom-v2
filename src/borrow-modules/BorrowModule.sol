@@ -175,50 +175,33 @@ abstract contract BorrowModule is IBorrowModule, Ownable {
         require(rwaAmount > 0, Errors.ZeroAmount());
 
         TbyCollateral storage collateral = _idToCollateral[tbyId];
-        if (collateral.originalRwaAmount == 0) {
-            collateral.originalRwaAmount = uint128(rwaAmount);
-        }
-
         // Cannot swap out more RWA tokens than is allocated for the TBY.
         rwaAmount = FpMath.min(rwaAmount, collateral.currentRwaAmount);
-
-        uint256 percentSwapped = rwaAmount.divWad(collateral.originalRwaAmount);
-        uint256 tbyTotalSupply = _tby.totalSupply(tbyId);
-        uint256 tbyAmount = percentSwapped != FpMath.WAD ? tbyTotalSupply.mulWad(percentSwapped) : tbyTotalSupply;
-        lenderReturn = getRate(tbyId).mulWad(tbyAmount);
 
         uint256 assetBalanceBefore = _asset.balanceOf(address(this));
         uint256 assetAmount = _repayRwa(rwaAmount);
         uint256 assetBalanceAfter = _asset.balanceOf(address(this));
         require(assetBalanceAfter - assetBalanceBefore == assetAmount, Errors.ExceedsSlippage());
 
-        uint256 rwaPriceUsd = _bloomOracle.getPriceUsd(address(_rwa));
-        RwaPrice storage rwaPrice_ = _tbyIdToRwaPrice[tbyId];
-
-        // If the price has dropped between the end of the TBY's maturity date and when the market maker swap finishes,
-        //     only the borrower's returns will be negatively impacted, unless the rate of the drop in price is so large,
-        //     that the lender's returns are less than their implied rate. In this case, the rate will be adjusted to
-        //     reflect the price of the new assets entering the pool. This adjustment is to ensure that lender returns always
-        //     match up with the implied rate of the TBY.
-        if (rwaPriceUsd < rwaPrice_.endPrice) {
-            if (lenderReturn > assetAmount) {
-                lenderReturn = assetAmount;
-                uint256 accumulatedCollateral = _bloomPool.lenderReturns(tbyId) + lenderReturn;
-                uint256 remainingAmount =
-                    (collateral.currentRwaAmount - rwaAmount).mulWad(rwaPriceUsd) / _assetScalingFactor;
-                uint256 totalCollateral = accumulatedCollateral + remainingAmount;
-                uint256 newRate = totalCollateral.divWad(_tby.totalSupply(tbyId));
-                uint256 adjustedRate = _takeSpread(newRate, rwaPrice_.spread);
-                rwaPrice_.endPrice = uint128(adjustedRate.mulWad(rwaPrice_.startPrice));
-            }
-        }
-        borrowerReturn = assetAmount - lenderReturn;
-
         collateral.currentRwaAmount -= uint128(rwaAmount);
         collateral.assetAmount += uint128(assetAmount);
 
         if (collateral.currentRwaAmount == 0) {
+            RwaPrice storage rwaPrice_ = _tbyIdToRwaPrice[tbyId];
+
             isRedeemable = true;
+            assetAmount = collateral.assetAmount;
+            uint256 tbyAmount = _tby.totalSupply(tbyId);
+            lenderReturn = getRate(tbyId).mulWad(tbyAmount);
+
+            if (lenderReturn > assetAmount) {
+                uint256 newRate = assetAmount.divWad(tbyAmount);
+                uint256 adjustedRate = _takeSpread(newRate, rwaPrice_.spread);
+                rwaPrice_.endPrice = uint128(adjustedRate.mulWad(rwaPrice_.startPrice));
+                lenderReturn = adjustedRate.mulWad(tbyAmount);
+            }
+
+            borrowerReturn = assetAmount - lenderReturn;
         }
     }
 

@@ -151,10 +151,11 @@ contract BloomPool is IBloomPool, Ownable2Step, ReentrancyGuard {
         require(module != address(0), Errors.InvalidTby());
         require(_idToMaturity[tbyId].end <= block.timestamp, Errors.TBYNotMatured());
         (uint256 lenderReturn, uint256 borrowerReturn, bool redeemable) = IBorrowModule(module).repay(tbyId, msg.sender);
-        _tbyLenderReturns[tbyId] += lenderReturn;
-        _tbyBorrowerReturns[tbyId] += borrowerReturn;
+
         if (redeemable) {
             _isTbyRedeemable[tbyId] = true;
+            _tbyLenderReturns[tbyId] += lenderReturn;
+            _tbyBorrowerReturns[tbyId] += borrowerReturn;
         }
     }
 
