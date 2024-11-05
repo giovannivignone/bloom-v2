@@ -159,8 +159,8 @@ abstract contract BorrowModule is IBorrowModule, Ownable {
         require(rwaBalanceAfter - rwaBalanceBefore == rwaAmount, Errors.ExceedsSlippage());
 
         TbyCollateral storage collateral = _idToCollateral[_lastMintedId];
-        collateral.currentRwaAmount += uint128(rwaAmount);
-        _setStartPrice(_lastMintedId, rwaPriceUsd, rwaAmount, collateral.currentRwaAmount);
+        collateral.rwaAmount += uint128(rwaAmount);
+        _setStartPrice(_lastMintedId, rwaPriceUsd, rwaAmount, collateral.rwaAmount);
     }
 
     /// @inheritdoc IBorrowModule
@@ -176,17 +176,17 @@ abstract contract BorrowModule is IBorrowModule, Ownable {
 
         TbyCollateral storage collateral = _idToCollateral[tbyId];
         // Cannot swap out more RWA tokens than is allocated for the TBY.
-        rwaAmount = FpMath.min(rwaAmount, collateral.currentRwaAmount);
+        rwaAmount = FpMath.min(rwaAmount, collateral.rwaAmount);
 
         uint256 assetBalanceBefore = _asset.balanceOf(address(this));
         uint256 assetAmount = _repayRwa(rwaAmount);
         uint256 assetBalanceAfter = _asset.balanceOf(address(this));
         require(assetBalanceAfter - assetBalanceBefore == assetAmount, Errors.ExceedsSlippage());
 
-        collateral.currentRwaAmount -= uint128(rwaAmount);
+        collateral.rwaAmount -= uint128(rwaAmount);
         collateral.assetAmount += uint128(assetAmount);
 
-        if (collateral.currentRwaAmount == 0) {
+        if (collateral.rwaAmount == 0) {
             RwaPrice storage rwaPrice_ = _tbyIdToRwaPrice[tbyId];
 
             isRedeemable = true;
@@ -467,6 +467,6 @@ abstract contract BorrowModule is IBorrowModule, Ownable {
      * @return The amount of RWA tokens being swapped out.
      */
     function _getRwaSwapAmount(uint256 tbyId) internal virtual returns (uint256) {
-        return _idToCollateral[tbyId].currentRwaAmount;
+        return _idToCollateral[tbyId].rwaAmount;
     }
 }
