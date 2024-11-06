@@ -150,17 +150,13 @@ abstract contract BorrowModule is IBorrowModule, Ownable {
         require(bCollateral > 0, Errors.ZeroAmount());
 
         uint256 totalCollateral = amount + bCollateral;
-        uint256 rwaPriceUsd = _bloomOracle.getPriceUsd(address(_rwa));
+        uint256 rwaPriceInAsset = _bloomOracle.getQuote(totalCollateral, address(_rwa), address(_asset));
 
-        uint256 rwaBalanceBefore = _rwa.balanceOf(address(this));
-        uint256 rwaAmount = _purchaseRwa(borrower, totalCollateral, rwaPriceUsd);
-        // validate that we have received enough RWA tokens
-        uint256 rwaBalanceAfter = _rwa.balanceOf(address(this));
-        require(rwaBalanceAfter - rwaBalanceBefore == rwaAmount, Errors.ExceedsSlippage());
+        uint256 rwaAmount = _purchaseRwa(borrower, totalCollateral, rwaPriceInAsset);
 
         TbyCollateral storage collateral = _idToCollateral[_lastMintedId];
         collateral.rwaAmount += uint128(rwaAmount);
-        _setStartPrice(_lastMintedId, rwaPriceUsd, rwaAmount, collateral.rwaAmount);
+        _setStartPrice(_lastMintedId, rwaPriceInAsset, rwaAmount, collateral.rwaAmount);
     }
 
     /// @inheritdoc IBorrowModule
@@ -178,10 +174,7 @@ abstract contract BorrowModule is IBorrowModule, Ownable {
         // Cannot swap out more RWA tokens than is allocated for the TBY.
         rwaAmount = FpMath.min(rwaAmount, collateral.rwaAmount);
 
-        uint256 assetBalanceBefore = _asset.balanceOf(address(this));
         uint256 assetAmount = _repayRwa(rwaAmount);
-        uint256 assetBalanceAfter = _asset.balanceOf(address(this));
-        require(assetBalanceAfter - assetBalanceBefore == assetAmount, Errors.ExceedsSlippage());
 
         collateral.rwaAmount -= uint128(rwaAmount);
         collateral.assetAmount += uint128(assetAmount);
@@ -355,7 +348,7 @@ abstract contract BorrowModule is IBorrowModule, Ownable {
         }
 
         // If the TBY has matured, and is eligible for redemption, calculate the rate based on the end price.
-        uint256 price = rwaPrice_.endPrice != 0 ? rwaPrice_.endPrice : _bloomOracle.getPriceUsd(address(_rwa));
+        uint256 price = rwaPrice_.endPrice != 0 ? rwaPrice_.endPrice : _bloomOracle.getQuote(10 ** IERC20Metadata(address(_rwa)).decimals(), address(_asset), address(_rwa));
         uint256 rate = (uint256(price).divWad(uint256(rwaPrice_.startPrice)));
         return _takeSpread(rate, rwaPrice_.spread);
     }

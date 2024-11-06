@@ -11,18 +11,28 @@ pragma solidity 0.8.27;
 
 interface IBloomOracle {
     /*///////////////////////////////////////////////////////////////
-                              Functions
+                              Events
     //////////////////////////////////////////////////////////////*/
     /**
-     * @notice Get the price of a token in terms of USD.
-     * @param token The address of the token.
-     * @return The price of the token in USD scaled by 1e18.
+     * @notice Configure a PriceOracle to resolve an asset pair.
+     * @dev If `oracle` is `address(0)` then the configuration was removed.
+     *  The keys are lexicographically sorted (asset0 < asset1).
+     * @param asset0 The address first in lexicographic order.
+     * @param asset1 The address second in lexicographic order.
+     * @param oracle The address of the PriceOracle that resolves the pair.
      */
-    function getPriceUsd(address token) external view returns (uint256);
+    event ConfigSet(address indexed asset0, address indexed asset1, address indexed oracle);
+
+    /*///////////////////////////////////////////////////////////////
+                              Functions
+    //////////////////////////////////////////////////////////////*/
 
     /**
-     * @notice Returns the adapter for a token.
-     * @param token Address of the token to get the adapter for.
+     * @notice @notice One-sided price: How much quote token you would get for inAmount of base token, assuming no price spread.
+     * @param inAmount The amount of `base` to convert.
+     * @param base The token that is being priced.
+     * @param quote  The token that is the unit of account.
+     * @return The amount of `quote` that is equivalent to `inAmount` of `base`.
      */
-    function getAdapter(address token) external view returns (address);
+    function getQuote(uint256 inAmount, address base, address quote) external view returns (uint256);
 }
