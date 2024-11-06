@@ -348,7 +348,9 @@ abstract contract BorrowModule is IBorrowModule, Ownable {
         }
 
         // If the TBY has matured, and is eligible for redemption, calculate the rate based on the end price.
-        uint256 price = rwaPrice_.endPrice != 0 ? rwaPrice_.endPrice : _bloomOracle.getQuote(10 ** IERC20Metadata(address(_rwa)).decimals(), address(_asset), address(_rwa));
+        uint256 price = rwaPrice_.endPrice != 0
+            ? rwaPrice_.endPrice
+            : _bloomOracle.getQuote(10 ** IERC20Metadata(address(_rwa)).decimals(), address(_asset), address(_rwa));
         uint256 rate = (uint256(price).divWad(uint256(rwaPrice_.startPrice)));
         return _takeSpread(rate, rwaPrice_.spread);
     }

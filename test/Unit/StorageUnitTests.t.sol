@@ -10,32 +10,32 @@
 pragma solidity 0.8.27;
 
 import {Test} from "forge-std/Test.sol";
+import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 
 import {BloomTestSetup} from "../BloomTestSetup.t.sol";
-
-contract TbyFuzzTest is BloomTestSetup {
+import {IBloomPool} from "@bloom-v2/interfaces/IBloomPool.sol";
+contract StorageUnitTests is BloomTestSetup {
     function setUp() public override {
         super.setUp();
     }
 
-    function testMint(uint256 amount) public {
-        vm.startPrank(address(bloomPool));
-        tby.mint(0, alice, amount);
-
-        assertEq(tby.balanceOf(alice, 0), amount);
-        assertEq(tby.totalSupply(0), amount);
+    function testTby() public view {
+        assertEq(bloomPool.tby(), address(tby));
     }
 
-    function testBurn(uint256 startAmount, uint256 burnAmount) public {
-        vm.assume(startAmount >= burnAmount);
-        vm.startPrank(address(bloomPool));
+    function testAsset() public view {
+        assertEq(bloomPool.asset(), address(stable));
+    }
 
-        tby.mint(0, alice, startAmount);
+    function testAssetDecimals() public view {
+        assertEq(bloomPool.assetDecimals(), stable.decimals());
+    }
 
-        tby.burn(0, alice, burnAmount);
+    function testMinOrderSize() public view {
+        assertEq(bloomPool.minOrderSize(), 1e6);
+    }
 
-        uint256 expected = startAmount - burnAmount;
-        assertEq(tby.balanceOf(alice, 0), expected);
-        assertEq(tby.totalSupply(0), expected);
+    function testLastMintedId() public view {
+        assertEq(bloomPool.lastMintedId(), type(uint256).max);
     }
 }

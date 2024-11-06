@@ -11,6 +11,7 @@ import {Errors} from "../lib/Errors.sol";
 /// @notice PriceOracle adapter for Chainlink push-based price feeds.
 /// @dev Integration Note: `maxStaleness` is an immutable parameter set in the constructor.
 /// If the aggregator's heartbeat changes, this adapter may exhibit unintended behavior.
+
 contract ChainlinkOracle is BaseAdapter {
     /// @notice The minimum permitted value for `maxStaleness`.
     uint256 internal constant MAX_STALENESS_LOWER_BOUND = 1 minutes;
@@ -36,16 +37,8 @@ contract ChainlinkOracle is BaseAdapter {
     /// @param _maxStaleness The maximum allowed age of the price.
     /// @dev Consider setting `_maxStaleness` to slightly more than the feed's heartbeat
     /// to account for possible network delays when the heartbeat is triggered.
-    constructor(
-        address _base,
-        address _quote,
-        address _feed,
-        uint256 _maxStaleness
-    ) {
-        if (
-            _maxStaleness < MAX_STALENESS_LOWER_BOUND ||
-            _maxStaleness > MAX_STALENESS_UPPER_BOUND
-        ) {
+    constructor(address _base, address _quote, address _feed, uint256 _maxStaleness) {
+        if (_maxStaleness < MAX_STALENESS_LOWER_BOUND || _maxStaleness > MAX_STALENESS_UPPER_BOUND) {
             revert Errors.PriceOracle_InvalidConfiguration();
         }
 
@@ -66,24 +59,15 @@ contract ChainlinkOracle is BaseAdapter {
     /// @param _base The token that is being priced.
     /// @param _quote The token that is the unit of account.
     /// @return The converted amount using the Chainlink feed.
-    function _getQuote(
-        uint256 inAmount,
-        address _base,
-        address _quote
-    ) internal view override returns (uint256) {
-        bool inverse = ScaleUtils.getDirectionOrRevert(
-            _base,
-            base,
-            _quote,
-            quote
-        );
+    function _getQuote(uint256 inAmount, address _base, address _quote) internal view override returns (uint256) {
+        bool inverse = ScaleUtils.getDirectionOrRevert(_base, base, _quote, quote);
 
-        (, int256 answer, , uint256 updatedAt, ) = AggregatorV3Interface(feed)
-            .latestRoundData();
+        (, int256 answer,, uint256 updatedAt,) = AggregatorV3Interface(feed).latestRoundData();
         if (answer <= 0) revert Errors.PriceOracle_InvalidAnswer();
         uint256 staleness = block.timestamp - updatedAt;
-        if (staleness > maxStaleness)
+        if (staleness > maxStaleness) {
             revert Errors.PriceOracle_TooStale(staleness, maxStaleness);
+        }
 
         uint256 price = uint256(answer);
         return ScaleUtils.calcOutAmount(inAmount, price, scale, inverse);

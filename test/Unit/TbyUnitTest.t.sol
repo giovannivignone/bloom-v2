@@ -15,7 +15,6 @@ import {BloomErrors as Errors} from "@bloom-v2/helpers/BloomErrors.sol";
 
 import {BloomTestSetup} from "../BloomTestSetup.t.sol";
 import {Tby} from "@bloom-v2/token/Tby.sol";
-import {IOrderbook} from "@bloom-v2/interfaces/IOrderbook.sol";
 
 contract TbyUnitTest is BloomTestSetup {
     function setUp() public override {

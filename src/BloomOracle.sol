@@ -8,9 +8,9 @@ import {IBloomOracle} from "./interfaces/IBloomOracle.sol";
 /**
  * @title BloomOracle
  * @author Euler Labs (https://www.eulerlabs.com/)
- *         Modified by Bloom Protocol (https://bloom.garden/)  
+ *         Modified by Bloom Protocol (https://bloom.garden/)
  * @notice Default Oracle resolver for Bloom lending products.
- * @dev This contract is modified from EulerRouter to support Bloom's lending products. 
+ * @dev This contract is modified from EulerRouter to support Bloom's lending products.
  *      Change Log:
  *         1. Unneeded functions from the EulerRouter is removed.
  *         2. Removed ERC4626 vault related logic.

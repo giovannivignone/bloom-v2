@@ -17,7 +17,6 @@ import {BorrowModule} from "../BorrowModule.sol";
  * @dev This module still needs to be implemented for a specific protocol. Its only functionality is to send borrowed assets and messages to destination borrow modules.
  */
 abstract contract CCIPSenderModule is BorrowModule {
-    
     function _purchaseRwa(address borrower, uint256 totalCollateral, uint256 rwaPriceUsd)
         internal
         virtual

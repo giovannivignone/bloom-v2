@@ -16,6 +16,4 @@ import {BorrowModule} from "../BorrowModule.sol";
  * @notice The contract that will be deployed on destination chains to receive assets and messages from the sender module.
  * @dev This module still needs to be implemented for a specific protocol. Its only functionality is to receive borrowed assets and messages from the sender module.
  */
-abstract contract CCIPReceiverModule is BorrowModule {
-    
-}
+abstract contract CCIPReceiverModule is BorrowModule {}
