@@ -107,4 +107,7 @@ library BloomErrors {
 
     /// @notice Invalid Price Feed
     error InvalidPriceFeed();
+
+    /// @notice Invalid Configuration
+    error InvalidConfiguration();
 }
