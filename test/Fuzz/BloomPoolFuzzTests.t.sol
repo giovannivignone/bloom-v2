@@ -25,9 +25,9 @@ contract LendUnitTests is BloomTestSetup {
     function testLendOrder(uint256 amount) public {
         amount = bound(amount, 1e6, 1_000_000e6);
         stable.mint(alice, amount);
-        
+
         uint256 preAliceBalance = stable.balanceOf(alice);
-        
+
         vm.startPrank(alice);
         stable.approve(address(bloomPool), amount);
         bloomPool.lendOrder(amount);

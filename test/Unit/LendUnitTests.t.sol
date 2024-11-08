@@ -25,9 +25,9 @@ contract LendUnitTests is BloomTestSetup {
     function testLendOrder() public {
         uint256 amount = 1e6;
         stable.mint(alice, amount);
-        
+
         uint256 preAliceBalance = stable.balanceOf(alice);
-        
+
         vm.startPrank(alice);
         stable.approve(address(bloomPool), amount);
         bloomPool.lendOrder(amount);
@@ -110,7 +110,7 @@ contract LendUnitTests is BloomTestSetup {
         assertEq(bloomPool.openDepth(), amount2 + amount3);
         // Verify Alice's balance increases
         assertEq(stable.balanceOf(alice), amount1);
-    
+
         // Kill the second lend order
         vm.startPrank(bob);
         bloomPool.killOpenOrder(amount2);

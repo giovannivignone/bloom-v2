@@ -55,7 +55,7 @@ contract MockBorrowModule is BorrowModule {
      * @param rwaAmount The amount of RWA tokens purchased.
      * @return The amount of RWA tokens purchased.
      */
-    function _purchaseRwa(address /*borrower*/, uint256 totalCollateral, uint256 rwaAmount)
+    function _purchaseRwa(address, /*borrower*/ uint256 totalCollateral, uint256 rwaAmount)
         internal
         override
         returns (uint256)

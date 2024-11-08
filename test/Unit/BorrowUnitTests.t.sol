@@ -23,6 +23,7 @@ import {BloomOracle} from "@bloom-v2/oracle/BloomOracle.sol";
 import {MockPriceFeed} from "../mocks/MockPriceFeed.sol";
 import {ChainlinkOracle} from "@bloom-v2/oracle/chainlink/ChainlinkOracle.sol";
 import {CrossAdapter} from "@bloom-v2/oracle/CrossAdapter.sol";
+
 contract BorrowUnitTests is BloomTestSetup {
     using FpMath for uint256;
 
@@ -43,26 +44,14 @@ contract BorrowUnitTests is BloomTestSetup {
         usdcPriceFeed.setLatestRoundData(1, 1e8, 0, block.timestamp, 1);
         vm.stopPrank();
 
-        ChainlinkOracle chainlinkOracle1 = new ChainlinkOracle(
-            address(billToken),
-            address(usd),
-            address(priceFeed),
-            1 days
-        );
+        ChainlinkOracle chainlinkOracle1 =
+            new ChainlinkOracle(address(billToken), address(usd), address(priceFeed), 1 days);
 
-        ChainlinkOracle chainlinkOracle2 = new ChainlinkOracle(
-            address(stable),
-            address(usd),
-            address(usdcPriceFeed),
-            1 days
-        );
+        ChainlinkOracle chainlinkOracle2 =
+            new ChainlinkOracle(address(stable), address(usd), address(usdcPriceFeed), 1 days);
 
         CrossAdapter crossAdapter = new CrossAdapter(
-            address(billToken),
-            address(usd),
-            address(stable),
-            address(chainlinkOracle1),
-            address(chainlinkOracle2)
+            address(billToken), address(usd), address(stable), address(chainlinkOracle1), address(chainlinkOracle2)
         );
 
         // Todo: Add a 2 step oracle
@@ -71,14 +60,8 @@ contract BorrowUnitTests is BloomTestSetup {
         bloomOracle.setConfig(address(stable), address(usd), address(chainlinkOracle2));
         bloomOracle.setConfig(address(billToken), address(stable), address(crossAdapter));
         // deploy mock borrow module
-        mockBorrowModule = new MockBorrowModule(
-            address(bloomPool),
-            address(bloomOracle),
-            address(billToken),
-            50e18,
-            .995e18,
-            owner
-        );
+        mockBorrowModule =
+            new MockBorrowModule(address(bloomPool), address(bloomOracle), address(billToken), 50e18, 0.995e18, owner);
 
         bloomPool.addBorrowModule(address(mockBorrowModule));
     }
