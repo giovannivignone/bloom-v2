@@ -127,7 +127,7 @@ abstract contract BorrowModule is IBorrowModule, Ownable {
         uint256 assetDecimals = IERC20Metadata(asset_).decimals();
         uint256 rwaDecimals = IERC20Metadata(rwa_).decimals();
 
-        _assetScalingFactor = rwaDecimals >= assetDecimals ? 10 ** (rwaDecimals - assetDecimals) : (assetDecimals - rwaDecimals);
+        _assetScalingFactor = rwaDecimals >= assetDecimals ? 10 ** (rwaDecimals - assetDecimals) : 10 ** (assetDecimals - rwaDecimals);
 
         _setLeverage(initLeverage);
         _setSpread(initSpread);
