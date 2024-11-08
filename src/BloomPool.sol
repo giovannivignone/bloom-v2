@@ -107,7 +107,7 @@ contract BloomPool is IBloomPool, Ownable2Step, ReentrancyGuard {
         _tby = new Tby(address(this), decimals);
 
         _assetDecimals = decimals;
-        _minOrderSize = 1 * (10 ** decimals); // Minimum order size is 1 underlying asset.
+        _minOrderSize = 10 ** decimals; // Minimum order size is 1 underlying asset.
         _lastMintedId = type(uint256).max;
     }
 
@@ -253,9 +253,11 @@ contract BloomPool is IBloomPool, Ownable2Step, ReentrancyGuard {
         _openDepth -= lCollateral;
         orderDepth -= lCollateral;
 
-        _minOrderSizeCheck(orderDepth);
-        _userOpenOrder[account] = orderDepth;
+        if (orderDepth != 0) {
+            _minOrderSizeCheck(orderDepth);
+        }
 
+        _userOpenOrder[account] = orderDepth;
         _tby.mint(tbyId, account, lCollateral);
     }
 

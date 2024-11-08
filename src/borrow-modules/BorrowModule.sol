@@ -124,7 +124,10 @@ abstract contract BorrowModule is IBorrowModule, Ownable {
         _rwa = IERC20(rwa_);
         _bloomOracle = IBloomOracle(bloomOracle_);
 
-        _assetScalingFactor = 10 ** IERC20Metadata(asset_).decimals();
+        uint256 assetDecimals = IERC20Metadata(asset_).decimals();
+        uint256 rwaDecimals = IERC20Metadata(rwa_).decimals();
+
+        _assetScalingFactor = rwaDecimals >= assetDecimals ? 10 ** (rwaDecimals - assetDecimals) : (assetDecimals - rwaDecimals);
 
         _setLeverage(initLeverage);
         _setSpread(initSpread);
@@ -149,14 +152,15 @@ abstract contract BorrowModule is IBorrowModule, Ownable {
         bCollateral = amount.divWadUp(_leverage);
         require(bCollateral > 0, Errors.ZeroAmount());
 
-        uint256 totalCollateral = amount + bCollateral;
-        uint256 rwaPriceInAsset = _bloomOracle.getQuote(totalCollateral, address(_rwa), address(_asset));
-
-        uint256 rwaAmount = _purchaseRwa(borrower, totalCollateral, rwaPriceInAsset);
+        uint256 totalCollateral = _getCollateral(borrower, amount, bCollateral);
+        uint256 rwaAmount = _bloomOracle.getQuote(totalCollateral, address(_asset), address(_rwa));
+        rwaAmount = _purchaseRwa(borrower, totalCollateral, rwaAmount);
 
         TbyCollateral storage collateral = _idToCollateral[_lastMintedId];
         collateral.rwaAmount += uint128(rwaAmount);
-        _setStartPrice(_lastMintedId, rwaPriceInAsset, rwaAmount, collateral.rwaAmount);
+
+        uint256 rwaPriceFixedPoint = (totalCollateral * _assetScalingFactor).divWad(rwaAmount);
+        _setStartPrice(_lastMintedId, rwaPriceFixedPoint, rwaAmount, collateral.rwaAmount);
     }
 
     /// @inheritdoc IBorrowModule
@@ -330,6 +334,12 @@ abstract contract BorrowModule is IBorrowModule, Ownable {
         return uint128(totalValue.divWad(totalCollateral));
     }
 
+    function _getCollateral(address borrower, uint256 amount, uint256 bCollateral) internal returns (uint256) {
+        IERC20(_asset).transferFrom(borrower, address(this), bCollateral);
+        IERC20(_asset).transferFrom(address(_bloomPool), address(this), amount);
+        return amount + bCollateral;
+    }
+
     /*///////////////////////////////////////////////////////////////
                             View Functions    
     //////////////////////////////////////////////////////////////*/
@@ -433,10 +443,10 @@ abstract contract BorrowModule is IBorrowModule, Ownable {
      *         3. RWA token should be held within the borrow module's contract.
      * @param borrower The address of the borrower.
      * @param totalCollateral The total amount of collateral being swapped in.
-     * @param rwaPriceUsd The price of the RWA token in USD.
+     * @param rwaAmount The amount of RWA tokens purchased.
      * @return The amount of RWA tokens purchased.
      */
-    function _purchaseRwa(address borrower, uint256 totalCollateral, uint256 rwaPriceUsd)
+    function _purchaseRwa(address borrower, uint256 totalCollateral, uint256 rwaAmount)
         internal
         virtual
         returns (uint256)

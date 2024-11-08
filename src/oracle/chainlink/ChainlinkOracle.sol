@@ -5,6 +5,7 @@ import {BaseAdapter} from "../BaseAdapter.sol";
 import {AggregatorV3Interface} from "./AggregatorV3Interface.sol";
 import {ScaleUtils, Scale} from "../lib/ScaleUtils.sol";
 import {Errors} from "../lib/Errors.sol";
+
 /// @title ChainlinkOracle
 /// @custom:security-contact security@euler.xyz
 /// @author Euler Labs (https://www.eulerlabs.com/)
@@ -61,9 +62,9 @@ contract ChainlinkOracle is BaseAdapter {
     /// @return The converted amount using the Chainlink feed.
     function _getQuote(uint256 inAmount, address _base, address _quote) internal view override returns (uint256) {
         bool inverse = ScaleUtils.getDirectionOrRevert(_base, base, _quote, quote);
-
         (, int256 answer,, uint256 updatedAt,) = AggregatorV3Interface(feed).latestRoundData();
         if (answer <= 0) revert Errors.PriceOracle_InvalidAnswer();
+
         uint256 staleness = block.timestamp - updatedAt;
         if (staleness > maxStaleness) {
             revert Errors.PriceOracle_TooStale(staleness, maxStaleness);

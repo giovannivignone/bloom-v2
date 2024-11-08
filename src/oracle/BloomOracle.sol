@@ -2,8 +2,8 @@
 pragma solidity ^0.8.0;
 
 import {Ownable2Step, Ownable} from "@openzeppelin/contracts/access/Ownable2Step.sol";
-import {BloomErrors as Errors} from "./helpers/BloomErrors.sol";
-import {IBloomOracle} from "./interfaces/IBloomOracle.sol";
+import {BloomErrors as Errors} from "@bloom-v2/helpers/BloomErrors.sol";
+import {IBloomOracle} from "@bloom-v2/interfaces/IBloomOracle.sol";
 
 /**
  * @title BloomOracle

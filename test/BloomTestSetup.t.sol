@@ -51,7 +51,7 @@ abstract contract BloomTestSetup is Test {
 
         vm.startPrank(owner);
         priceFeed = new MockPriceFeed(8);
-        priceFeed.setLatestRoundData(1, 110e8, 0, block.timestamp, 1);
+        priceFeed.setLatestRoundData(1, 100e8, 0, block.timestamp, 1);
 
         bloomPool = new BloomPool(address(stable), owner);
         vm.stopPrank();
