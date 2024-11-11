@@ -110,8 +110,10 @@ interface IBloomPool {
         returns (uint256 tbyId, uint256 lCollateral, uint256 bCollateral);
 
     /**
-     * @notice Repays borrowed funds.
-     * @dev This function will automatically repay the maximum amount possible for a given borrower and tbyId.
+     * @notice Repays all borrowed funds + collateral for a given TBY.
+     * @dev This function is a permissionless function that can be called by anyone. Due to positions being stored in the borrowModule,
+     *      borrower repayments can be executed by anyone.
+     * @dev This function will automatically repay the maximum amount possible for a given tbyId.
      * @param tbyId The id of the TBY to repay.
      */
     function repay(uint256 tbyId) external;
@@ -175,9 +177,6 @@ interface IBloomPool {
 
     /// @notice Returns the total amount of assets all the borrowers have contributed to for a given Tby ID.
     function totalBorrowed(uint256 id) external view returns (uint256);
-
-    /// @notice Returns if a Tby is eligible for redemption.
-    function isTbyRedeemable(uint256 id) external view returns (bool);
 
     /// @notice Returns the total amount of assets currently available for lender's to redeem for a given Tby ID.
     function lenderReturns(uint256 id) external view returns (uint256);

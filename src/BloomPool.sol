@@ -57,9 +57,6 @@ contract BloomPool is IBloomPool, Ownable2Step, ReentrancyGuard {
     /// @notice Mapping of TBY ids to the total amount borrowed.
     mapping(uint256 => uint256) private _idToTotalBorrowed;
 
-    /// @notice Mapping of TBY ids to whether they are redeemable.
-    mapping(uint256 => bool) private _isTbyRedeemable;
-
     /// @notice Mapping of TBY ids to the lender returns.
     mapping(uint256 => uint256) private _tbyLenderReturns;
 
@@ -88,11 +85,6 @@ contract BloomPool is IBloomPool, Ownable2Step, ReentrancyGuard {
 
     modifier validModule(address module) {
         if (!_borrowModules[module]) revert Errors.InvalidBorrowModule();
-        _;
-    }
-
-    modifier isRedeemable(uint256 id) {
-        require(_isTbyRedeemable[id], Errors.TBYNotRedeemable());
         _;
     }
 
@@ -150,22 +142,14 @@ contract BloomPool is IBloomPool, Ownable2Step, ReentrancyGuard {
         address module = _tbyModule[tbyId];
         require(module != address(0), Errors.InvalidTby());
         require(_idToMaturity[tbyId].end <= block.timestamp, Errors.TBYNotMatured());
-        (uint256 lenderReturn, uint256 borrowerReturn, bool redeemable) = IBorrowModule(module).repay(tbyId, msg.sender);
+        (uint256 lenderReturn, uint256 borrowerReturn) = IBorrowModule(module).repay(tbyId);
 
-        if (redeemable) {
-            _isTbyRedeemable[tbyId] = true;
-            _tbyLenderReturns[tbyId] += lenderReturn;
-            _tbyBorrowerReturns[tbyId] += borrowerReturn;
-        }
+        _tbyLenderReturns[tbyId] += lenderReturn;
+        _tbyBorrowerReturns[tbyId] += borrowerReturn;
     }
 
     /// @inheritdoc IBloomPool
-    function redeemLender(uint256 tbyId, uint256 amount)
-        external
-        override
-        isRedeemable(tbyId)
-        returns (uint256 reward)
-    {
+    function redeemLender(uint256 tbyId, uint256 amount) external override returns (uint256 reward) {
         require(_tby.balanceOf(msg.sender, tbyId) >= amount, Errors.InsufficientBalance());
 
         uint256 totalSupply = _tby.totalSupply(tbyId);
@@ -182,7 +166,7 @@ contract BloomPool is IBloomPool, Ownable2Step, ReentrancyGuard {
     }
 
     /// @inheritdoc IBloomPool
-    function redeemBorrower(uint256 tbyId) external override isRedeemable(tbyId) returns (uint256 reward) {
+    function redeemBorrower(uint256 tbyId) external override returns (uint256 reward) {
         uint256 totalBorrowAmount = _idToTotalBorrowed[tbyId];
         uint256 borrowAmount = _borrowerAmounts[msg.sender][tbyId];
         require(totalBorrowAmount != 0, Errors.TotalBorrowedZero());
@@ -364,11 +348,6 @@ contract BloomPool is IBloomPool, Ownable2Step, ReentrancyGuard {
     /// @inheritdoc IBloomPool
     function totalBorrowed(uint256 id) external view override returns (uint256) {
         return _idToTotalBorrowed[id];
-    }
-
-    /// @inheritdoc IBloomPool
-    function isTbyRedeemable(uint256 id) external view override returns (bool) {
-        return _isTbyRedeemable[id];
     }
 
     /// @inheritdoc IBloomPool

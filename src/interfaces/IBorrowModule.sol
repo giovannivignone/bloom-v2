@@ -72,18 +72,14 @@ interface IBorrowModule {
     function borrow(address borrower, uint256 amount) external returns (uint256 bCollateral);
 
     /**
-     * @notice Repays borrowed funds.
+     * @notice Repays ALL borrowers borrowed funds + collateral.
      * @dev This function will be called by the BloomPool.
      * @dev Module Developers need to implement the _getRwaSwapAmount and _repayRwa functions in order to allow this function to execute successfully.
      * @param tbyId The id of the TBY to repay the borrowed assets for.
-     * @param borrower The address of the borrower.
      * @return lenderReturn The amount of underlying assets that the lender is receiving.
      * @return borrowerReturn The amount of underlying assets that the borrower is receiving.
-     * @return isRedeemable True if the TBY is redeemable.
      */
-    function repay(uint256 tbyId, address borrower)
-        external
-        returns (uint256 lenderReturn, uint256 borrowerReturn, bool isRedeemable);
+    function repay(uint256 tbyId) external returns (uint256 lenderReturn, uint256 borrowerReturn);
 
     /**
      * @notice Transfers the underlying asset collateral back to the recipient.

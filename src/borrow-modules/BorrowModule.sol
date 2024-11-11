@@ -21,11 +21,12 @@ import {IBloomPool} from "@bloom-v2/interfaces/IBloomPool.sol";
 import {IBorrowModule} from "@bloom-v2/interfaces/IBorrowModule.sol";
 import {IBloomOracle} from "@bloom-v2/interfaces/IBloomOracle.sol";
 import {ITby} from "@bloom-v2/interfaces/ITby.sol";
-
+import {console2} from "forge-std/console2.sol";
 /**
  * @title BorrowModule
  * @notice Reusable logic for building borrow modules on the Bloom Protocol.
  */
+
 abstract contract BorrowModule is IBorrowModule, Ownable {
     using FpMath for uint256;
     using SafeERC20 for IERC20;
@@ -165,12 +166,11 @@ abstract contract BorrowModule is IBorrowModule, Ownable {
     }
 
     /// @inheritdoc IBorrowModule
-    function repay(uint256 tbyId, address borrower)
+    function repay(uint256 tbyId)
         external
         override
         onlyBloomPool
-        KycBorrower(borrower)
-        returns (uint256 lenderReturn, uint256 borrowerReturn, bool isRedeemable)
+        returns (uint256 lenderReturn, uint256 borrowerReturn)
     {
         uint256 rwaAmount = _getRwaSwapAmount(tbyId);
         require(rwaAmount > 0, Errors.ZeroAmount());
@@ -187,7 +187,6 @@ abstract contract BorrowModule is IBorrowModule, Ownable {
         if (collateral.rwaAmount == 0) {
             RwaPrice storage rwaPrice_ = _tbyIdToRwaPrice[tbyId];
 
-            isRedeemable = true;
             assetAmount = collateral.assetAmount;
             uint256 tbyAmount = _tby.totalSupply(tbyId);
             lenderReturn = getRate(tbyId).mulWad(tbyAmount);
@@ -197,6 +196,9 @@ abstract contract BorrowModule is IBorrowModule, Ownable {
                 uint256 adjustedRate = _takeSpread(newRate, rwaPrice_.spread);
                 rwaPrice_.endPrice = uint128(adjustedRate.mulWad(rwaPrice_.startPrice));
                 lenderReturn = adjustedRate.mulWad(tbyAmount);
+            } else {
+                rwaPrice_.endPrice =
+                    uint128(_bloomOracle.getQuote(1e18, address(_rwa), address(_asset)) * _assetScalingFactor);
             }
 
             borrowerReturn = assetAmount - lenderReturn;
@@ -361,7 +363,7 @@ abstract contract BorrowModule is IBorrowModule, Ownable {
         // If the TBY has matured, and is eligible for redemption, calculate the rate based on the end price.
         uint256 price = rwaPrice_.endPrice != 0
             ? rwaPrice_.endPrice
-            : _bloomOracle.getQuote(10 ** IERC20Metadata(address(_rwa)).decimals(), address(_asset), address(_rwa));
+            : _bloomOracle.getQuote(1e18, address(_rwa), address(_asset)) * _assetScalingFactor;
         uint256 rate = (uint256(price).divWad(uint256(rwaPrice_.startPrice)));
         return _takeSpread(rate, rwaPrice_.spread);
     }
