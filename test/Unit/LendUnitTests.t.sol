@@ -138,7 +138,7 @@ contract LendUnitTests is BloomTestSetup {
             uint256 amount = 10 ** i;
 
             MockERC20 token = new MockERC20("Mock token", "MTK", i);
-            BloomPool pool = new BloomPool(address(token), owner);
+            BloomPool pool = new BloomPool(address(token), amount, owner);
 
             token.mint(alice, amount);
 

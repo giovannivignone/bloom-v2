@@ -39,14 +39,17 @@ contract BloomPool is IBloomPool, Ownable2Step, ReentrancyGuard {
     /// @notice The last TBY id that was minted.
     uint256 private _lastMintedId;
 
+    /// @notice The minimum size of an order.
+    uint256 private _minOrderSize;
+
     /// @notice Mapping of users to their open order amount.
     mapping(address => uint256) private _userOpenOrder;
 
     /// @notice Mapping of borrow module addresses to whether they are active.
-    mapping(address => bool) internal _borrowModules;
+    mapping(address => bool) private _borrowModules;
 
     /// @notice Mapping of TBY ids to their corresponding borrow module.
-    mapping(uint256 => address) internal _tbyModule;
+    mapping(uint256 => address) private _tbyModule;
 
     /// @notice Mapping of borrowers to the amount they have borrowed for a given TBY id.
     mapping(address => mapping(uint256 => uint256)) private _borrowerAmounts;
@@ -65,16 +68,13 @@ contract BloomPool is IBloomPool, Ownable2Step, ReentrancyGuard {
     //////////////////////////////////////////////////////////////*/
 
     /// @notice Instance of the Tby token.
-    Tby internal immutable _tby;
+    Tby private immutable _tby;
 
     /// @notice Address of the underlying asset of the Pool.
-    address internal immutable _asset;
+    address private immutable _asset;
 
     /// @notice Decimals of the underlying asset of the Pool.
-    uint8 internal immutable _assetDecimals;
-
-    /// @notice The minimum size of an order.
-    uint256 internal immutable _minOrderSize;
+    uint8 private immutable _assetDecimals;
 
     /*///////////////////////////////////////////////////////////////
                             Modifiers    
@@ -89,14 +89,14 @@ contract BloomPool is IBloomPool, Ownable2Step, ReentrancyGuard {
                             Constructor    
     //////////////////////////////////////////////////////////////*/
 
-    constructor(address asset_, address owner_) Ownable(owner_) {
+    constructor(address asset_, uint256 minOrderSize_, address owner_) Ownable(owner_) {
         _asset = asset_;
+        _minOrderSize = minOrderSize_;
 
         uint8 decimals = IERC20Metadata(asset_).decimals();
         _tby = new Tby(address(this), decimals);
 
         _assetDecimals = decimals;
-        _minOrderSize = 10 ** decimals; // Minimum order size is 1 underlying asset.
         _lastMintedId = type(uint256).max;
     }
 
@@ -217,6 +217,14 @@ contract BloomPool is IBloomPool, Ownable2Step, ReentrancyGuard {
      */
     function pauseBorrowModule(address module) external onlyOwner {
         _borrowModules[module] = false;
+    }
+
+    /**
+     * @notice Sets the minimum order size.
+     * @param minOrderSize_ The new minimum order size.
+     */
+    function setMinOrderSize(uint256 minOrderSize_) external onlyOwner {
+        _minOrderSize = minOrderSize_;
     }
 
     /*///////////////////////////////////////////////////////////////
