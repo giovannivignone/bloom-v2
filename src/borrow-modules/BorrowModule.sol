@@ -55,6 +55,9 @@ abstract contract BorrowModule is IBorrowModule, Ownable {
     /// @notice A mapping of the TBY id to the collateral that is backed by the tokens.
     mapping(uint256 => TbyCollateral) internal _idToCollateral;
 
+    /// @notice A mapping of the TBY id to the maturity of the TBY.
+    mapping(uint256 => TbyMaturity) internal _idToMaturity;
+
     /*///////////////////////////////////////////////////////////////
                         Constants & Immutables
     //////////////////////////////////////////////////////////////*/
@@ -172,6 +175,8 @@ abstract contract BorrowModule is IBorrowModule, Ownable {
         onlyBloomPool
         returns (uint256 lenderReturn, uint256 borrowerReturn)
     {
+        require(_idToMaturity[tbyId].end <= block.timestamp, Errors.TBYNotMatured());
+
         uint256 rwaAmount = _getRwaSwapAmount(tbyId);
         require(rwaAmount > 0, Errors.ZeroAmount());
 
@@ -212,8 +217,24 @@ abstract contract BorrowModule is IBorrowModule, Ownable {
     }
 
     /// @inheritdoc IBorrowModule
-    function setLastMintedId(uint256 id) external override onlyBloomPool {
-        _lastMintedId = id;
+    function calculateTbyId(uint256 bloomsLastMintedId) external onlyBloomPool returns (uint256 id) {
+        // Get the last minted TBY id from the borrow module
+        id = _lastMintedId;
+        TbyMaturity memory maturity = _idToMaturity[id];
+
+        // If the timestamp of the last minted TBYs (from this module) start is greater than 48 hours from now, this swap is for a new TBY Id.
+        if (block.timestamp > maturity.start + _swapBuffer) {
+            console2.log("New TBY Id", bloomsLastMintedId);
+            // Last minted id is set to type(uint256).max, so we need to wrap around to 0 to start the first TBY.
+            unchecked {
+                id = ++bloomsLastMintedId;
+            }
+            uint128 start = uint128(block.timestamp);
+            uint128 end = start + uint128(_loanDuration);
+            _idToMaturity[id] = TbyMaturity(start, end);
+
+            _lastMintedId = id;
+        }
     }
 
     /*///////////////////////////////////////////////////////////////
@@ -349,7 +370,7 @@ abstract contract BorrowModule is IBorrowModule, Ownable {
 
     /// @inheritdoc IBorrowModule
     function getRate(uint256 id) public view override returns (uint256) {
-        IBloomPool.TbyMaturity memory maturity = _bloomPool.tbyMaturity(id);
+        TbyMaturity memory maturity = _idToMaturity[id];
         RwaPrice memory rwaPrice_ = _tbyIdToRwaPrice[id];
 
         if (rwaPrice_.startPrice == 0) {
@@ -431,6 +452,11 @@ abstract contract BorrowModule is IBorrowModule, Ownable {
     /// @inheritdoc IBorrowModule
     function tbyCollateral(uint256 id) external view override returns (TbyCollateral memory) {
         return _idToCollateral[id];
+    }
+
+    /// @inheritdoc IBorrowModule
+    function tbyMaturity(uint256 id) external view override returns (TbyMaturity memory) {
+        return _idToMaturity[id];
     }
 
     /*///////////////////////////////////////////////////////////////

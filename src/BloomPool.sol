@@ -48,9 +48,6 @@ contract BloomPool is IBloomPool, Ownable2Step, ReentrancyGuard {
     /// @notice Mapping of TBY ids to their corresponding borrow module.
     mapping(uint256 => address) internal _tbyModule;
 
-    /// @notice Mapping of TBY ids to the maturity range.
-    mapping(uint256 => TbyMaturity) private _idToMaturity;
-
     /// @notice Mapping of borrowers to the amount they have borrowed for a given TBY id.
     mapping(address => mapping(uint256 => uint256)) private _borrowerAmounts;
 
@@ -123,8 +120,13 @@ contract BloomPool is IBloomPool, Ownable2Step, ReentrancyGuard {
         nonReentrant
         returns (uint256 tbyId, uint256 lCollateral, uint256 bCollateral)
     {
-        tbyId = _handleTbyId(module);
-        _tbyModule[tbyId] = module;
+        uint256 bloomsLastMintedId = _lastMintedId;
+        tbyId = IBorrowModule(module).calculateTbyId(bloomsLastMintedId);
+
+        if (tbyId != bloomsLastMintedId) {
+            _tbyModule[tbyId] = module;
+            _lastMintedId = tbyId;
+        }
 
         uint256 len = lenders.length;
         for (uint256 i = 0; i != len; ++i) {
@@ -141,7 +143,6 @@ contract BloomPool is IBloomPool, Ownable2Step, ReentrancyGuard {
     function repay(uint256 tbyId) external override nonReentrant {
         address module = _tbyModule[tbyId];
         require(module != address(0), Errors.InvalidTby());
-        require(_idToMaturity[tbyId].end <= block.timestamp, Errors.TBYNotMatured());
         (uint256 lenderReturn, uint256 borrowerReturn) = IBorrowModule(module).repay(tbyId);
 
         _tbyLenderReturns[tbyId] += lenderReturn;
@@ -272,30 +273,6 @@ contract BloomPool is IBloomPool, Ownable2Step, ReentrancyGuard {
         require(amount >= _minOrderSize, Errors.OrderBelowMinSize());
     }
 
-    /**
-     * @notice Calculates the TBY id to mint based on the last minted TBY id and the swap buffer.
-     * @dev If the last minted TBY id was created 48 hours ago or more, a new TBY id is minted.
-     * @return id The id of the TBY to mint.
-     */
-    function _handleTbyId(address module) private returns (uint256 id) {
-        // Get the last minted TBY id from the borrow module
-        id = IBorrowModule(module).lastMintedId();
-        TbyMaturity memory maturity = _idToMaturity[id];
-
-        // If the timestamp of the last minted TBYs start is greater than 48 hours from now, this swap is for a new TBY Id.
-        if (block.timestamp > maturity.start + IBorrowModule(module).swapBuffer()) {
-            // Last minted id is set to type(uint256).max, so we need to wrap around to 0 to start the first TBY.
-            unchecked {
-                id = ++_lastMintedId;
-            }
-            uint128 start = uint128(block.timestamp);
-            uint128 end = start + uint128(IBorrowModule(module).loanDuration());
-            _idToMaturity[id] = TbyMaturity(start, end);
-
-            IBorrowModule(module).setLastMintedId(id);
-        }
-    }
-
     /*///////////////////////////////////////////////////////////////
                             View Functions    
     //////////////////////////////////////////////////////////////*/
@@ -333,11 +310,6 @@ contract BloomPool is IBloomPool, Ownable2Step, ReentrancyGuard {
     /// @inheritdoc IBloomPool
     function lastMintedId() external view override returns (uint256) {
         return _lastMintedId;
-    }
-
-    /// @inheritdoc IBloomPool
-    function tbyMaturity(uint256 id) external view override returns (TbyMaturity memory) {
-        return _idToMaturity[id];
     }
 
     /// @inheritdoc IBloomPool

@@ -35,6 +35,16 @@ interface IBorrowModule {
         uint128 spread;
     }
 
+    /**
+     * @notice Struct representing the maturity range of a TBY.
+     * @param start The start timestamp in seconds of the maturity range.
+     * @param end The end timestamp in seconds of the maturity range.
+     */
+    struct TbyMaturity {
+        uint128 start;
+        uint128 end;
+    }
+
     /*///////////////////////////////////////////////////////////////
                               Events
     //////////////////////////////////////////////////////////////*/
@@ -91,11 +101,12 @@ interface IBorrowModule {
     function transferCollateral(uint256 tbyId, uint256 amount, address recipient) external;
 
     /**
-     * @notice Sets the last minted TBY id associated with the borrow module.
-     * @dev This function will be called by the BloomPool.
-     * @param id The id of the TBY to set as the last minted.
+     * @notice Calculates the TBY id to mint based on the last minted TBY id (in this module), the swap buffer, and the last minted TBY id from the Bloom Pool.
+     * @dev This function is called by the Bloom Pool.
+     * @dev If the last minted TBY id (from this module) was created 48 hours ago or more, a new TBY id is minted.
+     * @return id The id of the TBY to mint.
      */
-    function setLastMintedId(uint256 id) external;
+    function calculateTbyId(uint256 bloomsLastMintedId) external returns (uint256 id);
 
     /*///////////////////////////////////////////////////////////////
                             View Functions    
@@ -158,4 +169,7 @@ interface IBorrowModule {
      * @return TbyCollateral The collateral for the TBY.
      */
     function tbyCollateral(uint256 tbyId) external view returns (TbyCollateral memory);
+
+    /// @notice Returns the TbyMaturity struct containing the start and end timestamps of a given Tby ID.
+    function tbyMaturity(uint256 id) external view returns (TbyMaturity memory);
 }

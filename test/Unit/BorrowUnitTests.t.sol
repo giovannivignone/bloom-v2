@@ -88,8 +88,8 @@ contract BorrowUnitTests is BloomTestSetup {
         // Assert that the state variables are updated correctly
         assertEq(mockBorrowModule.tbyCollateral(lastMintedTby).rwaAmount, 1.02e18);
         assertEq(mockBorrowModule.rwaPrice(lastMintedTby).startPrice, 100e18);
-        assertEq(bloomPool.tbyMaturity(lastMintedTby).start, block.timestamp);
-        assertEq(bloomPool.tbyMaturity(lastMintedTby).end, block.timestamp + 180 days);
+        assertEq(mockBorrowModule.tbyMaturity(lastMintedTby).start, block.timestamp);
+        assertEq(mockBorrowModule.tbyMaturity(lastMintedTby).end, block.timestamp + 180 days);
     }
 
     function testRepaySingleBorrower() public {

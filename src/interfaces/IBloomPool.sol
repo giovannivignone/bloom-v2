@@ -30,16 +30,6 @@ interface IBloomPool {
         uint128 originalRwaAmount;
     }
 
-    /**
-     * @notice Struct representing the maturity range of a TBY.
-     * @param start The start timestamp in seconds of the maturity range.
-     * @param end The end timestamp in seconds of the maturity range.
-     */
-    struct TbyMaturity {
-        uint128 start;
-        uint128 end;
-    }
-
     /*///////////////////////////////////////////////////////////////
                                 Events
     //////////////////////////////////////////////////////////////*/
@@ -168,9 +158,6 @@ interface IBloomPool {
 
     /// @notice Returns the last minted TBY id.
     function lastMintedId() external view returns (uint256);
-
-    /// @notice Returns the TbyMaturity struct containing the start and end timestamps of a given Tby ID.
-    function tbyMaturity(uint256 id) external view returns (TbyMaturity memory);
 
     /// @notice Returns the total amount of assets a borrower has contributed to for a given Tby ID.
     function borrowerAmount(address account, uint256 id) external view returns (uint256);
