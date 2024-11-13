@@ -159,6 +159,12 @@ interface IBloomPool {
     /// @notice Returns the last minted TBY id.
     function lastMintedId() external view returns (uint256);
 
+    /// @notice Returns whether a given address is a borrowModule.
+    function isBorrowModule(address module) external view returns (bool);
+
+    /// @notice Returns the address of the borrowModule for a given TBY id.
+    function tbyModule(uint256 id) external view returns (address);
+
     /// @notice Returns the total amount of assets a borrower has contributed to for a given Tby ID.
     function borrowerAmount(address account, uint256 id) external view returns (uint256);
 

@@ -152,5 +152,72 @@ contract BorrowUnitTests is BloomTestSetup {
         assertEq(bloomPool.borrowerReturns(0), 0);
     }
 
-    function testMultipleBorrowerModules() public {}
+    function testMultipleBorrowerModules() public {
+        vm.startPrank(owner);
+        MockBorrowModule mockBorrowModule2 =
+            new MockBorrowModule(address(bloomPool), address(bloomOracle), address(billToken), 50e18, 0.995e18, owner);
+
+        bloomPool.addBorrowModule(address(mockBorrowModule2));
+
+        MockBorrowModule mockBorrowModule3 =
+            new MockBorrowModule(address(bloomPool), address(bloomOracle), address(billToken), 50e18, 0.995e18, owner);
+
+        bloomPool.addBorrowModule(address(mockBorrowModule3));
+
+        uint256 amount = 300e6;
+
+        _createLendOrder(alice, amount);
+        lenders.push(alice);
+
+        vm.startPrank(owner);
+        mockBorrowModule.whitelistBorrower(borrower1, true);
+        mockBorrowModule2.whitelistBorrower(borrower1, true);
+        mockBorrowModule3.whitelistBorrower(borrower1, true);
+
+        vm.startPrank(borrower1);
+        stable.approve(address(mockBorrowModule), amount);
+        stable.approve(address(mockBorrowModule2), amount);
+        stable.approve(address(mockBorrowModule3), amount);
+        stable.mint(borrower1, 1000e6);
+
+        bloomPool.borrow(lenders, address(mockBorrowModule), 50e6);
+        bloomPool.borrow(lenders, address(mockBorrowModule2), 50e6);
+        bloomPool.borrow(lenders, address(mockBorrowModule3), 50e6);
+
+        assertEq(bloomPool.tbyModule(0), address(mockBorrowModule));
+        assertEq(bloomPool.tbyModule(1), address(mockBorrowModule2));
+        assertEq(bloomPool.tbyModule(2), address(mockBorrowModule3));
+
+        assertEq(tby.balanceOf(alice, 0), 50e6);
+        assertEq(tby.balanceOf(alice, 1), 50e6);
+        assertEq(tby.balanceOf(alice, 2), 50e6);
+
+        assertEq(bloomPool.borrowerAmount(borrower1, 0), 1e6);
+        assertEq(bloomPool.borrowerAmount(borrower1, 1), 1e6);
+        assertEq(bloomPool.borrowerAmount(borrower1, 2), 1e6);
+
+        _skipAndUpdatePrice(1 days, 100e8, 1);
+        vm.startPrank(owner);
+        usdcPriceFeed.setLatestRoundData(2, 1e8, 0, block.timestamp, 1);
+        vm.stopPrank();
+
+        vm.startPrank(borrower1);
+        (uint256 tbyId,,) = bloomPool.borrow(lenders, address(mockBorrowModule2), 50e6);
+
+        assertEq(tbyId, 1);
+        assertEq(tby.balanceOf(alice, 1), 100e6);
+        assertEq(bloomPool.borrowerAmount(borrower1, 1), 2e6);
+
+        _skipAndUpdatePrice(2 days, 105e8, 2);
+        vm.startPrank(owner);
+        usdcPriceFeed.setLatestRoundData(3, 1e8, 0, block.timestamp, 1);
+        vm.stopPrank();
+
+        vm.startPrank(borrower1);
+        (tbyId,,) = bloomPool.borrow(lenders, address(mockBorrowModule), 50e6);
+
+        assertEq(tbyId, 3);
+        assertEq(tby.balanceOf(alice, 3), 50e6);
+        assertEq(bloomPool.borrowerAmount(borrower1, 3), 1e6);
+    }
 }

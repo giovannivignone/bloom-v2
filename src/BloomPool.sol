@@ -123,14 +123,16 @@ contract BloomPool is IBloomPool, Ownable2Step, ReentrancyGuard {
         uint256 bloomsLastMintedId = _lastMintedId;
         tbyId = IBorrowModule(module).calculateTbyId(bloomsLastMintedId);
 
-        if (tbyId != bloomsLastMintedId) {
+        if (tbyId > bloomsLastMintedId || bloomsLastMintedId == type(uint256).max) {
             _tbyModule[tbyId] = module;
             _lastMintedId = tbyId;
         }
 
         uint256 len = lenders.length;
         for (uint256 i = 0; i != len; ++i) {
-            lCollateral += _fillOrder(lenders[i], tbyId, amount);
+            uint256 filled = _fillOrder(lenders[i], tbyId, amount);
+            if (filled == 0) break;
+            lCollateral += filled;
         }
 
         IERC20(_asset).forceApprove(module, lCollateral);
@@ -238,7 +240,7 @@ contract BloomPool is IBloomPool, Ownable2Step, ReentrancyGuard {
      */
     function _fillOrder(address account, uint256 tbyId, uint256 amount) internal returns (uint256 lCollateral) {
         require(account != address(0), Errors.ZeroAddress());
-        _amountZeroCheck(amount);
+        if (amount == 0) return 0;
 
         uint256 orderDepth = _userOpenOrder[account];
 
@@ -247,6 +249,7 @@ contract BloomPool is IBloomPool, Ownable2Step, ReentrancyGuard {
         orderDepth -= lCollateral;
 
         if (orderDepth != 0) {
+            // Make sure that lCollateral is 
             _minOrderSizeCheck(orderDepth);
         }
 
@@ -318,6 +321,16 @@ contract BloomPool is IBloomPool, Ownable2Step, ReentrancyGuard {
     /// @inheritdoc IBloomPool
     function lastMintedId() external view override returns (uint256) {
         return _lastMintedId;
+    }
+
+    /// @inheritdoc IBloomPool
+    function isBorrowModule(address module) external view override returns (bool) {
+        return _borrowModules[module];
+    }
+
+    /// @inheritdoc IBloomPool
+    function tbyModule(uint256 id) external view override returns (address) {
+        return _tbyModule[id];
     }
 
     /// @inheritdoc IBloomPool
