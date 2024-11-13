@@ -21,12 +21,11 @@ import {IBloomPool} from "@bloom-v2/interfaces/IBloomPool.sol";
 import {IBorrowModule} from "@bloom-v2/interfaces/IBorrowModule.sol";
 import {IBloomOracle} from "@bloom-v2/interfaces/IBloomOracle.sol";
 import {ITby} from "@bloom-v2/interfaces/ITby.sol";
-import {console2} from "forge-std/console2.sol";
+
 /**
  * @title BorrowModule
  * @notice Reusable logic for building borrow modules on the Bloom Protocol.
  */
-
 abstract contract BorrowModule is IBorrowModule, Ownable {
     using FpMath for uint256;
     using SafeERC20 for IERC20;
@@ -40,7 +39,7 @@ abstract contract BorrowModule is IBorrowModule, Ownable {
     /// @notice The buffer to account for the swap slippage.
     uint256 internal _swapBuffer;
 
-    /// @notice The duration of the loan in seconds.
+    /// @notice The duration of the next executed loan in seconds.
     uint256 internal _loanDuration;
 
     /// @notice The last TBY id that was minted associated with the borrow module.
@@ -77,9 +76,6 @@ abstract contract BorrowModule is IBorrowModule, Ownable {
     /// @notice The Bloom Oracle contract.
     IBloomOracle internal immutable _bloomOracle;
 
-    /// @notice The scaling factor for the asset.
-    uint256 internal immutable _assetScalingFactor;
-
     /// @notice The upper bound leverage allowed for pool (Cant be set to 100x but just under).
     uint256 constant MAX_LEVERAGE = 100e18;
 
@@ -92,6 +88,15 @@ abstract contract BorrowModule is IBorrowModule, Ownable {
 
     /// @notice The default length of time that TBYs mature.
     uint256 constant DEFAULT_MATURITY = 180 days;
+
+    /// @notice 1 RWA token in its own decimals.
+    uint256 internal immutable _ONE_RWA;
+
+    /// @notice The number of decimals for the underlying asset.
+    uint256 internal immutable _assetDecimals;
+
+    /// @notice The number of decimals for the RWA token.
+    uint256 internal immutable _rwaDecimals;
 
     /*///////////////////////////////////////////////////////////////
                             Modifiers    
@@ -128,11 +133,10 @@ abstract contract BorrowModule is IBorrowModule, Ownable {
         _rwa = IERC20(rwa_);
         _bloomOracle = IBloomOracle(bloomOracle_);
 
-        uint256 assetDecimals = IERC20Metadata(asset_).decimals();
-        uint256 rwaDecimals = IERC20Metadata(rwa_).decimals();
+        _assetDecimals = IERC20Metadata(asset_).decimals();
+        _rwaDecimals = IERC20Metadata(rwa_).decimals();
 
-        _assetScalingFactor =
-            rwaDecimals >= assetDecimals ? 10 ** (rwaDecimals - assetDecimals) : 10 ** (assetDecimals - rwaDecimals);
+        _ONE_RWA = 10 ** _rwaDecimals;
 
         _setLeverage(initLeverage);
         _setSpread(initSpread);
@@ -164,7 +168,12 @@ abstract contract BorrowModule is IBorrowModule, Ownable {
         TbyCollateral storage collateral = _idToCollateral[_lastMintedId];
         collateral.rwaAmount += uint128(rwaAmount);
 
-        uint256 rwaPriceFixedPoint = (totalCollateral * _assetScalingFactor).divWad(rwaAmount);
+        uint256 assetDecimals = _assetDecimals;
+        uint256 rwaDecimals = _rwaDecimals;
+
+        uint256 rwaPriceFixedPoint = assetDecimals > rwaDecimals
+            ? (totalCollateral / (10 ** (assetDecimals - rwaDecimals))).divWad(rwaAmount)
+            : (totalCollateral * (10 ** (rwaDecimals - assetDecimals))).divWad(rwaAmount);
         _setStartPrice(_lastMintedId, rwaPriceFixedPoint, rwaAmount, collateral.rwaAmount);
     }
 
@@ -202,8 +211,10 @@ abstract contract BorrowModule is IBorrowModule, Ownable {
                 rwaPrice_.endPrice = uint128(adjustedRate.mulWad(rwaPrice_.startPrice));
                 lenderReturn = adjustedRate.mulWad(tbyAmount);
             } else {
-                rwaPrice_.endPrice =
-                    uint128(_bloomOracle.getQuote(1e18, address(_rwa), address(_asset)) * _assetScalingFactor);
+                rwaPrice_.endPrice = uint128(
+                    _bloomOracle.getQuote(_ONE_RWA, address(_rwa), address(_asset))
+                        * (10 ** (18 - IERC20Metadata(address(_asset)).decimals()))
+                );
             }
 
             borrowerReturn = assetAmount - lenderReturn;
@@ -224,7 +235,6 @@ abstract contract BorrowModule is IBorrowModule, Ownable {
 
         // If the timestamp of the last minted TBYs (from this module) start is greater than 48 hours from now, this swap is for a new TBY Id.
         if (block.timestamp > maturity.start + _swapBuffer) {
-            console2.log("New TBY Id", bloomsLastMintedId);
             // Last minted id is set to type(uint256).max, so we need to wrap around to 0 to start the first TBY.
             unchecked {
                 id = ++bloomsLastMintedId;
@@ -384,7 +394,8 @@ abstract contract BorrowModule is IBorrowModule, Ownable {
         // If the TBY has matured, and is eligible for redemption, calculate the rate based on the end price.
         uint256 price = rwaPrice_.endPrice != 0
             ? rwaPrice_.endPrice
-            : _bloomOracle.getQuote(1e18, address(_rwa), address(_asset)) * _assetScalingFactor;
+            : _bloomOracle.getQuote(_ONE_RWA, address(_rwa), address(_asset))
+                * (10 ** (18 - IERC20Metadata(address(_asset)).decimals()));
         uint256 rate = (uint256(price).divWad(uint256(rwaPrice_.startPrice)));
         return _takeSpread(rate, rwaPrice_.spread);
     }

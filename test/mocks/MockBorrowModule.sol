@@ -27,8 +27,6 @@ contract MockBorrowModule is BorrowModule {
 
     MockAMM internal immutable _amm;
 
-    uint8 internal immutable _assetDecimals;
-
     constructor(
         address bloomPool_,
         address bloomOracle_,
@@ -38,7 +36,6 @@ contract MockBorrowModule is BorrowModule {
         address owner_
     ) BorrowModule(bloomPool_, bloomOracle_, rwa_, initLeverage, initSpread, owner_) {
         _amm = new MockAMM();
-        _assetDecimals = MockERC20(address(_asset)).decimals();
     }
 
     /**

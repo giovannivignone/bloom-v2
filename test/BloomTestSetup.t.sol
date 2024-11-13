@@ -42,6 +42,8 @@ abstract contract BloomTestSetup is Test {
     address[] public filledOrders;
     uint256[] public filledAmounts;
 
+    address internal constant usd = address(0x0000000000000000000000000000000000000348);
+
     function setUp() public virtual {
         stable = new MockERC20("Mock USDC", "USDC", 6);
         billToken = new MockERC20("Mock T-Bill Token", "bIb01", 18);

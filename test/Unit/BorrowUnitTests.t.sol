@@ -33,7 +33,6 @@ contract BorrowUnitTests is BloomTestSetup {
 
         // deploy Bloom Oracle
         bloomOracle = new BloomOracle(address(owner));
-        address usd = address(0x0000000000000000000000000000000000000348);
 
         vm.startPrank(owner);
         usdcPriceFeed = new MockPriceFeed(8);
@@ -152,4 +151,6 @@ contract BorrowUnitTests is BloomTestSetup {
         assertEq(bloomPool.lenderReturns(0), 0);
         assertEq(bloomPool.borrowerReturns(0), 0);
     }
+
+    function testMultipleBorrowerModules() public {}
 }
