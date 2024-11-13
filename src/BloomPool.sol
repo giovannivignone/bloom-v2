@@ -249,7 +249,7 @@ contract BloomPool is IBloomPool, Ownable2Step, ReentrancyGuard {
         orderDepth -= lCollateral;
 
         if (orderDepth != 0) {
-            // Make sure that lCollateral is 
+            // Make sure that lCollateral is
             _minOrderSizeCheck(orderDepth);
         }
 
