@@ -514,4 +514,11 @@ abstract contract BorrowModule is IBorrowModule, Ownable {
     function _getRwaSwapAmount(uint256 tbyId) internal virtual returns (uint256) {
         return _idToCollateral[tbyId].rwaAmount;
     }
+
+    /*///////////////////////////////////////////////////////////////
+                            General Functions    
+    //////////////////////////////////////////////////////////////*/
+
+    /// @notice Ability to receive Native currency payments
+    receive() external payable {}
 }

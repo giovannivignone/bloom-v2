@@ -353,4 +353,11 @@ contract BloomPool is IBloomPool, Ownable2Step, ReentrancyGuard {
     function borrowerReturns(uint256 tbyId) external view override returns (uint256) {
         return _tbyBorrowerReturns[tbyId];
     }
+
+    /*///////////////////////////////////////////////////////////////
+                            General Functions    
+    //////////////////////////////////////////////////////////////*/
+
+    /// @notice Ability to receive Native currency payments
+    receive() external payable {}
 }

@@ -10,13 +10,12 @@
 pragma solidity 0.8.27;
 
 interface ICCIPModule {
-
     /*///////////////////////////////////////////////////////////////
                                 Enums
     //////////////////////////////////////////////////////////////*/
     /**
      * @notice Enum representing the type of message being sent.
-     * @param BORROW The message type for a borrow message. 
+     * @param BORROW The message type for a borrow message.
      * @param REPAY The message type for a repay message.
      */
     enum MessageType {
@@ -50,5 +49,5 @@ interface ICCIPModule {
     struct CCIPGasLimits {
         uint128 borrowGasLimit;
         uint128 repayGasLimit;
-        }
+    }
 }

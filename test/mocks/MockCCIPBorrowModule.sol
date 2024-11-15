@@ -13,7 +13,6 @@ import {CCIPSenderModule} from "@bloom-v2/borrow-modules/cross-chain/CCIPSenderM
 import {MockERC20} from "./MockERC20.sol";
 
 contract MockCCIPBorrowModule is CCIPSenderModule {
-    
     constructor(
         address bloomPool,
         address bloomOracle,
