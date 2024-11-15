@@ -99,6 +99,16 @@ library BloomErrors {
     error InsufficientBalance();
 
     /*///////////////////////////////////////////////////////////////
+                            CCIP Errors
+    //////////////////////////////////////////////////////////////*/
+
+    /// @notice The error emitted when the sender is invalid.
+    error InvalidSender();
+
+    /// @notice The error emitted when the chain ID is 0 on construction or if a message is sent from the wrong chain.
+    error InvalidChainId();
+
+    /*///////////////////////////////////////////////////////////////
                             Price Feeds    
     //////////////////////////////////////////////////////////////*/
 

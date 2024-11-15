@@ -153,6 +153,7 @@ abstract contract BorrowModule is IBorrowModule, Ownable {
     /// @inheritdoc IBorrowModule
     function borrow(address borrower, uint256 amount)
         external
+        payable
         override
         onlyBloomPool
         KycBorrower(borrower)
@@ -489,8 +490,7 @@ abstract contract BorrowModule is IBorrowModule, Ownable {
     function _purchaseRwa(address borrower, uint256 totalCollateral, uint256 rwaAmount)
         internal
         virtual
-        returns (uint256)
-    {}
+        returns (uint256);
 
     /**
      * @notice Repays the RWA tokens to the issuer in exchange for the underlying asset collateral.

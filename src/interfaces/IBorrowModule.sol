@@ -79,7 +79,7 @@ interface IBorrowModule {
      * @param amount The amount of underlying assets that the borrower is borrowering.
      * @return bCollateral Total amount of borrower collateral posted to execute the transaction.
      */
-    function borrow(address borrower, uint256 amount) external returns (uint256 bCollateral);
+    function borrow(address borrower, uint256 amount) external payable returns (uint256 bCollateral);
 
     /**
      * @notice Repays ALL borrowers borrowed funds + collateral.

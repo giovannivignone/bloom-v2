@@ -97,6 +97,7 @@ interface IBloomPool {
      */
     function borrow(address[] memory lenders, address module, uint256 amount)
         external
+        payable
         returns (uint256 tbyId, uint256 lCollateral, uint256 bCollateral);
 
     /**

@@ -115,6 +115,7 @@ contract BloomPool is IBloomPool, Ownable2Step, ReentrancyGuard {
     /// @inheritdoc IBloomPool
     function borrow(address[] memory lenders, address module, uint256 amount)
         external
+        payable
         override
         validModule(module)
         nonReentrant
