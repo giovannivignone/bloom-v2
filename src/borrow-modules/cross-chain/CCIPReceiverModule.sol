@@ -9,11 +9,11 @@
 */
 pragma solidity 0.8.27;
 
-import {IRouterClient} from "@chainlink-ccip/interfaces/IRouterClient.sol";
-import {Client} from "@chainlink-ccip/libraries/Client.sol";
-import {CCIPReceiver} from "@chainlink-ccip/applications/CCIPReceiver.sol";
-import {BloomErrors as Errors} from "../../Helpers/BloomErrors.sol";
-import {ICCIPModule} from "../../interfaces/ICCIPModule.sol";
+import {IRouterClient} from "@chainlink/ccip/interfaces/IRouterClient.sol";
+import {Client} from "@chainlink/ccip/libraries/Client.sol";
+import {CCIPReceiver} from "@chainlink/ccip/applications/CCIPReceiver.sol";
+import {BloomErrors as Errors} from "@bloom-v2/Helpers/BloomErrors.sol";
+import {ICCIPModule} from "@bloom-v2/interfaces/ICCIPModule.sol";
 
 /**
  * @title CCIPReceiverModule

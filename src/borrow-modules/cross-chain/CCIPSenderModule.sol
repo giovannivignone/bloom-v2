@@ -9,15 +9,15 @@
 */
 pragma solidity 0.8.27;
 
-import {SafeERC20, IERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
-import {IRouterClient} from "@chainlink/contracts-ccip/src/v0.8/ccip/interfaces/IRouterClient.sol";
-import {Client} from "@chainlink/contracts-ccip/src/v0.8/ccip/libraries/Client.sol";
-import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import {SafeERC20, IERC20} from "@openzeppelin/token/ERC20/utils/SafeERC20.sol";
+import {IRouterClient} from "@chainlink/ccip/interfaces/IRouterClient.sol";
+import {Client} from "@chainlink/ccip/libraries/Client.sol";
+import {IERC20} from "@openzeppelin/token/ERC20/IERC20.sol";
 
-import {BloomErrors as Errors} from "../../helpers/BloomErrors.sol";
+import {BloomErrors as Errors} from "@bloom-v2/helpers/BloomErrors.sol";
 
-import {BorrowModule} from "../BorrowModule.sol";
-import {ICCIPModule} from "../../interfaces/ICCIPModule.sol";
+import {BorrowModule} from "@bloom-v2/borrow-modules/BorrowModule.sol";
+import {ICCIPModule} from "@bloom-v2/interfaces/ICCIPModule.sol";
 
 /**
  * @title CCIPSenderModule

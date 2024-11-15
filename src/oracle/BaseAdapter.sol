@@ -9,8 +9,8 @@
 */
 pragma solidity 0.8.27;
 
-import {IERC20Metadata} from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
-import {IBloomOracle} from "../interfaces/IBloomOracle.sol";
+import {IERC20Metadata} from "@openzeppelin/token/ERC20/extensions/IERC20Metadata.sol";
+import {IBloomOracle} from "@bloom-v2/interfaces/IBloomOracle.sol";
 
 abstract contract BaseAdapter is IBloomOracle {
     // @dev Addresses <= 0x00..00ffffffff are considered to have 18 decimals without dispatching a call.

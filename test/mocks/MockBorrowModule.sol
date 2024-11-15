@@ -9,8 +9,8 @@
 */
 pragma solidity 0.8.27;
 
-import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import {IERC20} from "@openzeppelin/token/ERC20/IERC20.sol";
+import {SafeERC20} from "@openzeppelin/token/ERC20/utils/SafeERC20.sol";
 
 import {BloomOracle} from "@bloom-v2/oracle/BloomOracle.sol";
 import {BorrowModule} from "@bloom-v2/borrow-modules/BorrowModule.sol";
