@@ -29,12 +29,14 @@ interface ICCIPModule {
 
     /**
      * @notice Struct representing encoded data for a CCIP message.
+     * @param messageId The ID of the message being sent.
      * @param messageType The type of message being sent.
      * @param borrower The address of the borrower sending the message.
      * @param assetAmount The amount of asset being borrowed or repaid.
      * @param rwaAmount The amount of RWA being purchased or repaid.
      */
     struct CCIPMessageData {
+        uint256 messageId;
         MessageType messageType;
         address borrower;
         uint256 assetAmount;

@@ -9,10 +9,11 @@
 */
 pragma solidity 0.8.27;
 
-import {SafeERC20, IERC20} from "@openzeppelin/token/ERC20/utils/SafeERC20.sol";
-import {IRouterClient} from "@chainlink/ccip/interfaces/IRouterClient.sol";
+import {CCIPReceiver} from "@chainlink/ccip/applications/CCIPReceiver.sol";
 import {Client} from "@chainlink/ccip/libraries/Client.sol";
+import {SafeERC20, IERC20} from "@openzeppelin/token/ERC20/utils/SafeERC20.sol";
 import {IERC20} from "@openzeppelin/token/ERC20/IERC20.sol";
+import {IRouterClient} from "@chainlink/ccip/interfaces/IRouterClient.sol";
 
 import {BloomErrors as Errors} from "@bloom-v2/helpers/BloomErrors.sol";
 
@@ -24,7 +25,7 @@ import {ICCIPModule} from "@bloom-v2/interfaces/ICCIPModule.sol";
  * @notice A borrow module that allows for cross-chain borrowing using CCIP.
  * @dev This module still needs to be implemented for a specific protocol. Its only functionality is to send borrowed assets and messages to destination borrow modules.
  */
-abstract contract CCIPSenderModule is ICCIPModule, BorrowModule {
+abstract contract CCIPSenderModule is ICCIPModule, CCIPReceiver, BorrowModule {
     using SafeERC20 for IERC20;
 
     /*///////////////////////////////////////////////////////////////
@@ -42,6 +43,12 @@ abstract contract CCIPSenderModule is ICCIPModule, BorrowModule {
 
     /// @notice The gas limit for the CCIP message.
     CCIPGasLimits internal _gasLimits;
+
+    /// @notice The number of messages sent.
+    uint256 internal messageCount;
+
+    /// @notice A mapping of message IDs to CCIPMessageData.
+    mapping(uint256 => CCIPMessageData) internal _pendingMessages;
 
     /*///////////////////////////////////////////////////////////////
                                 Constructor    
@@ -119,12 +126,18 @@ abstract contract CCIPSenderModule is ICCIPModule, BorrowModule {
      */
     function _buildMessage(MessageType msgType, address borrower, uint256 assetAmount, uint256 rwaAmount)
         internal
-        view
         returns (Client.EVM2AnyMessage memory)
     {
         // Create struct to store all necessary extra data for the CCIP message.
-        CCIPMessageData memory ccipMsgData =
-            CCIPMessageData({messageType: msgType, borrower: borrower, assetAmount: assetAmount, rwaAmount: rwaAmount});
+        CCIPMessageData memory ccipMsgData = CCIPMessageData({
+            messageId: messageCount,
+            messageType: msgType,
+            borrower: borrower,
+            assetAmount: assetAmount,
+            rwaAmount: rwaAmount
+        });
+
+        _pendingMessages[messageCount] = ccipMsgData;
 
         // Encode data into bytes
         bytes memory data = abi.encode(ccipMsgData);
@@ -139,6 +152,28 @@ abstract contract CCIPSenderModule is ICCIPModule, BorrowModule {
                 Client.EVMExtraArgsV2({gasLimit: gasLimit(msgType), allowOutOfOrderExecution: false})
             )
         });
+    }
+
+    /**
+     * @notice Receives the confirmation message for CCIP Messages
+     * @param message The Cross-chain CCIP message in the form of a EVM2AnyMessage.
+     */
+    function _ccipReceive(Client.Any2EVMMessage memory message) internal override {
+        require(
+            keccak256(message.sender) == keccak256(abi.encode(_ccipReceiver))
+                && message.sourceChainSelector == _dstChainId,
+            Errors.InvalidSender()
+        );
+
+        CCIPMessageData memory ccipMsgData = abi.decode(message.data, (CCIPMessageData));
+
+        uint256 messageId = ccipMsgData.messageId;
+
+        if (messageId == _pendingMessages[messageId].messageId) {
+            delete _pendingMessages[messageId];
+        } else {
+            revert Errors.InvalidId();
+        }
     }
 
     /**
@@ -167,6 +202,7 @@ abstract contract CCIPSenderModule is ICCIPModule, BorrowModule {
     function _sendMessage(Client.EVM2AnyMessage memory message) internal virtual {
         uint256 fees = _ccipRouter.getFee(_dstChainId, message);
         _ccipRouter.ccipSend{value: fees}(_dstChainId, message);
+        messageCount++;
     }
 
     /*///////////////////////////////////////////////////////////////
