@@ -11,7 +11,7 @@ pragma solidity 0.8.27;
 
 import {SafeERC20, IERC20} from "@openzeppelin/token/ERC20/utils/SafeERC20.sol";
 import {CCIPReceiverModule} from "@bloom-v2/borrow-modules/cross-chain/CCIPReceiverModule.sol";
-import {BloomErrors as Errors} from "@bloom-v2/Helpers/BloomErrors.sol";
+import {BloomErrors as Errors} from "@bloom-v2/helpers/BloomErrors.sol";
 import {MockAMM} from "./MockAMM.sol";
 
 contract MockCCIPDstModule is CCIPReceiverModule {
