@@ -159,8 +159,9 @@ abstract contract CCIPReceiverModule is ICCIPModule, CCIPReceiver, Ownable {
         _purchaseRwa(messageData.borrower, messageData.assetAmount, messageData.rwaAmount);
         uint256 rwaReceived = rwa_.balanceOf(address(this)) - rwaStartingBalance;
 
-        Client.EVM2AnyMessage memory message =
-            _buildMessage(MessageType.REPAY, messageData.borrower, messageData.assetAmount, rwaReceived);
+        Client.EVM2AnyMessage memory message = _buildMessage(
+            messageData.messageId, MessageType.REPAY, messageData.borrower, messageData.assetAmount, rwaReceived
+        );
         _sendConfirmation(message);
     }
 
@@ -175,26 +176,35 @@ abstract contract CCIPReceiverModule is ICCIPModule, CCIPReceiver, Ownable {
         _repayRwa(messageData.borrower, messageData.rwaAmount, messageData.assetAmount);
         uint256 assetReceived = asset_.balanceOf(address(this)) - assetStartingBalance;
 
-        Client.EVM2AnyMessage memory message =
-            _buildMessage(MessageType.REPAY, messageData.borrower, assetReceived, messageData.rwaAmount);
+        Client.EVM2AnyMessage memory message = _buildMessage(
+            messageData.messageId, MessageType.REPAY, messageData.borrower, assetReceived, messageData.rwaAmount
+        );
         _sendConfirmation(message);
     }
 
     /**
      * @notice Builds a CCIP message that can be used for either borrowing cross-chain RWA assets or repaying such loans.
+     * @param messageId The ID of the message being sent.
      * @param msgType Either a BORROW or REPAY MessageType.
      * @param borrower The address of the borrower who is executing the transaction. Will always be address(0) on repayments.
      * @param assetAmount The amount of underlying asset either being used to purchase the RWA, or expected to be returned on repayment.
      * @param rwaAmount The amount of RWA either being purchased or repaid in the transaction.
      */
-    function _buildMessage(MessageType msgType, address borrower, uint256 assetAmount, uint256 rwaAmount)
-        internal
-        view
-        returns (Client.EVM2AnyMessage memory)
-    {
+    function _buildMessage(
+        uint256 messageId,
+        MessageType msgType,
+        address borrower,
+        uint256 assetAmount,
+        uint256 rwaAmount
+    ) internal view returns (Client.EVM2AnyMessage memory) {
         // Create struct to store all necessary extra data for the CCIP message.
-        CCIPMessageData memory ccipMsgData =
-            CCIPMessageData({messageType: msgType, borrower: borrower, assetAmount: assetAmount, rwaAmount: rwaAmount});
+        CCIPMessageData memory ccipMsgData = CCIPMessageData({
+            messageId: messageId,
+            messageType: msgType,
+            borrower: borrower,
+            assetAmount: assetAmount,
+            rwaAmount: rwaAmount
+        });
 
         // Encode data into bytes
         bytes memory data = abi.encode(ccipMsgData);

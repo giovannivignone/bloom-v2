@@ -19,9 +19,16 @@ contract MockCCIPDstModule is CCIPReceiverModule {
 
     MockAMM public mockAmm;
 
-    constructor(address asset_, address rwa_, uint64 srcChainId_, address ccipRouter, address ccipSender_, address amm_)
-        CCIPReceiverModule(asset_, rwa_, srcChainId_, ccipRouter, ccipSender_)
-    {
+    constructor(
+        address asset_,
+        address rwa_,
+        address linkToken_,
+        uint64 srcChainId_,
+        address ccipRouter,
+        address ccipSender_,
+        address amm_,
+        address owner_
+    ) CCIPReceiverModule(asset_, rwa_, linkToken_, srcChainId_, ccipRouter, ccipSender_, owner_) {
         require(amm_ != address(0), Errors.ZeroAddress());
         mockAmm = MockAMM(amm_);
     }

@@ -64,7 +64,7 @@ abstract contract CCIPSenderModule is ICCIPModule, CCIPReceiver, BorrowModule {
         address ccipRouter_,
         address ccipReceiver_,
         address owner
-    ) BorrowModule(bloomPool, bloomOracle, rwa, initLeverage, initSpread, owner) {
+    ) CCIPReceiver(ccipRouter_) BorrowModule(bloomPool, bloomOracle, rwa, initLeverage, initSpread, owner) {
         require(dstChainId_ != 0, Errors.InvalidChainId());
         require(ccipReceiver_ != address(0) || ccipRouter_ != address(0), Errors.ZeroAddress());
 

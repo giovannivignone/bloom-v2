@@ -19,10 +19,9 @@ contract MockCCIPBorrowModule is CCIPSenderModule {
         address rwa,
         uint256 initLeverage,
         uint256 initSpread,
-        address ccipReceiver,
         uint64 dstChainId,
         address ccipRouter,
-        uint256 gasLimit,
+        address ccipReceiver,
         address owner
     )
         CCIPSenderModule(bloomPool, bloomOracle, rwa, initLeverage, initSpread, dstChainId, ccipRouter, ccipReceiver, owner)
