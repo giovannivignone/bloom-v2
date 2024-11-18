@@ -15,7 +15,7 @@ import {Ownable} from "@openzeppelin/access/Ownable.sol";
 import {IRouterClient} from "@chainlink/ccip/interfaces/IRouterClient.sol";
 import {IERC20} from "@openzeppelin/token/ERC20/IERC20.sol";
 
-import {BloomErrors as Errors} from "@bloom-v2/Helpers/BloomErrors.sol";
+import {BloomErrors as Errors} from "@bloom-v2/helpers/BloomErrors.sol";
 import {ICCIPModule} from "@bloom-v2/interfaces/ICCIPModule.sol";
 
 /**
