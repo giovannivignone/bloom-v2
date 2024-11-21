@@ -1,0 +1,5 @@
+{
+    "pathsToAnalyze": [
+        "**/src"
+    ]
+}
